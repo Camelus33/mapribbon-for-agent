@@ -191,5 +191,28 @@
       "widthClass": "NARROW",
       "segments": []
     }
+  ],
+  "story": [
+    {
+      "metric": "hardBrakeRate",
+      "fromM": 7842,
+      "cars": 3
+    },
+    {
+      "metric": "wiperTurnedOnRate",
+      "fromM": 22985,
+      "cars": 6
+    },
+    {
+      "metric": "lateLaneChangeRate",
+      "fromM": 24399,
+      "cars": 4
+    },
+    {
+      "metric": "wiperFastRate",
+      "fromM": 25983,
+      "toM": 27298,
+      "cars": 4
+    }
   ]
 }

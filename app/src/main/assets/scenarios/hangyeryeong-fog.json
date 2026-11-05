@@ -197,5 +197,28 @@
       "widthClass": "NARROW",
       "segments": []
     }
+  ],
+  "story": [
+    {
+      "metric": "hardBrakeRate",
+      "fromM": 32502,
+      "cars": 4
+    },
+    {
+      "metric": "hardBrakeRate",
+      "fromM": 37855,
+      "cars": 3
+    },
+    {
+      "metric": "fogTurnedOnRate",
+      "fromM": 48037,
+      "cars": 6
+    },
+    {
+      "metric": "rearFogRate",
+      "fromM": 48037,
+      "toM": 50537,
+      "cars": 4
+    }
   ]
 }

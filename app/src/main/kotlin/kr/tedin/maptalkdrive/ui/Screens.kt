@@ -5,7 +5,6 @@ import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
@@ -13,7 +12,6 @@ import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -21,12 +19,9 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
-import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
-import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -50,31 +45,21 @@ import androidx.compose.ui.layout.boundsInParent
 import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
-import androidx.compose.ui.text.TextStyle
-import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import kotlinx.coroutines.delay
-import kotlinx.serialization.json.Json
 import kr.tedin.maptalkdrive.R
 import kr.tedin.maptalkdrive.channel.ChannelState
 import kr.tedin.maptalkdrive.demo.RibbonViewModel
-import kr.tedin.maptalkdrive.port.Gear
-import kr.tedin.maptalkdrive.port.PortStatus
-import kr.tedin.maptalkdrive.port.VehicleSignals
 import kr.tedin.maptalkdrive.ribbon.brief.Briefing
 import kr.tedin.maptalkdrive.ribbon.brief.BriefingItem
-import kr.tedin.maptalkdrive.ribbon.detect.TurnSignal
 import kr.tedin.maptalkdrive.ribbon.geo.CurveClass
 import kr.tedin.maptalkdrive.ribbon.spec.AnchorType
 import kr.tedin.maptalkdrive.ribbon.spec.Deviation
-import kr.tedin.maptalkdrive.ribbon.spec.Knot
-import kr.tedin.maptalkdrive.ribbon.spec.RibbonState
 import kr.tedin.maptalkdrive.ribbon.spec.RibbonStatus
-import kr.tedin.maptalkdrive.ribbon.spec.WiperLevel
 
 private val Gutter = 48.dp
 private val Touch = 76.dp
@@ -98,7 +83,7 @@ fun AppScreen(vm: RibbonViewModel, restricted: Boolean) {
             RecordingScreen(vm, s, restricted, t, w)
         } else {
             BriefingScreen(vm, s, preview, t, w, onOpenDemo = { sheet = true })
-            if (sheet) DemoSheet(vm, s, t, w, onClose = { sheet = false }, Modifier.align(Alignment.CenterEnd))
+            if (sheet) DemoPanel(vm, s, t, w, onClose = { sheet = false }, Modifier.align(Alignment.CenterEnd))
         }
     }
 }
@@ -516,131 +501,3 @@ private fun RecordingScreen(vm: RibbonViewModel, s: ChannelState, restricted: Bo
     }
 }
 
-// ---------------------------------------------------------------- demo sheet
-
-private val PrettyJson = Json { prettyPrint = true; encodeDefaults = true; explicitNulls = false }
-
-@Composable
-private fun DemoSheet(vm: RibbonViewModel, s: ChannelState, t: Tokens, w: Words, onClose: () -> Unit, modifier: Modifier) {
-    val ch = vm.channel
-    val signals by ch.vehicle.signals.collectAsState()
-    val vStatus by ch.vehicle.status.collectAsState()
-    val lStatus by ch.location.status.collectAsState()
-    val nStatus by ch.navi.status.collectAsState()
-    var details by remember { mutableStateOf(false) }
-    Row(modifier.fillMaxHeight().width(520.dp)) {
-        Box(Modifier.fillMaxHeight().width(1.dp).background(t.hairline))
-        Column(Modifier.fillMaxSize().background(t.page).padding(start = 32.dp, end = 32.dp, top = 32.dp, bottom = 24.dp), verticalArrangement = Arrangement.spacedBy(16.dp)) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Text(w.str(R.string.demo), style = Type.title, color = t.ink, modifier = Modifier.weight(1f))
-                OutlinedButton(onClick = onClose, modifier = Modifier.height(Touch), shape = RoundedCornerShape(12.dp)) { Text(w.str(R.string.close), style = Type.button, color = t.ink) }
-            }
-            Text(w.str(R.string.demo_hint), style = Type.caption, color = t.ink2)
-            Column {
-                for (route in vm.data.routes) {
-                    val (from, to) = w.ends(route.anchorSet)
-                    // Scenarios are grouped under the route they drive; picking one also puts its route on screen.
-                    Text("$from → $to · ${Words.at(route.anchorSet.lengthM)}", style = Type.caption, color = t.muted, modifier = Modifier.padding(top = 12.dp, bottom = 4.dp))
-                    for (sc in vm.data.scenarios.filter { it.routeId == route.id }) {
-                        val selected = s.scenarioId == sc.id
-                        Box(Modifier.fillMaxWidth().height(1.dp).background(t.grid))
-                        Row(
-                            Modifier.fillMaxWidth().height(Touch).clickable(enabled = !s.replaying) { ch.runScenario(sc.id); onClose() },
-                            verticalAlignment = Alignment.CenterVertically,
-                        ) {
-                            Box(Modifier.width(4.dp).fillMaxHeight().padding(vertical = 12.dp).background(if (selected) t.ink else t.page))
-                            Spacer(Modifier.width(16.dp))
-                            Column(Modifier.weight(1f)) {
-                                Text(ch.scenarioTitle(sc.id), style = Type.caption, color = t.ink, maxLines = 1, overflow = TextOverflow.Ellipsis)
-                                Text(w.str(R.string.sim_cars, sc.vehicles.size), style = Type.caption, color = t.muted)
-                            }
-                        }
-                    }
-                }
-                Box(Modifier.fillMaxWidth().height(1.dp).background(t.grid))
-            }
-            if (s.replaying) {
-                Text(w.str(R.string.sim_passing, s.replayDone, s.replayTotal), style = Type.caption, color = t.ink2)
-                LinearProgressIndicator(progress = { s.replayDone / s.replayTotal.coerceAtLeast(1).toFloat() }, modifier = Modifier.fillMaxWidth(), color = t.ink, trackColor = t.grid)
-            } else {
-                Text(if (s.knotCount > 0) w.str(R.string.knots, s.knotCount) else w.str(R.string.no_knots), style = Type.caption, color = t.ink2)
-            }
-            Row(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
-                OutlinedButton(onClick = { ch.clear() }, modifier = Modifier.height(Touch), shape = RoundedCornerShape(12.dp)) { Text(w.str(R.string.clear), style = Type.button, color = t.ink) }
-                OutlinedButton(onClick = { ch.startRecording(); onClose() }, modifier = Modifier.height(Touch), shape = RoundedCornerShape(12.dp)) { Text(w.str(R.string.record_live), style = Type.button, color = t.ink) }
-            }
-            Text(if (details) w.str(R.string.details_hide) else w.str(R.string.details), style = Type.caption, color = t.ink2, modifier = Modifier.clickable { details = !details }.padding(vertical = 8.dp))
-            if (details) {
-                Column(Modifier.weight(1f).fillMaxWidth().verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    AgentIo(s.lastKnot, s.briefing.headline?.state, t, w)
-                    Spacer(Modifier.height(8.dp))
-                    for (line in s.log) Text(line, style = Type.caption, color = t.muted)
-                }
-            } else {
-                Spacer(Modifier.weight(1f))
-            }
-            Text(w.str(R.string.connection), style = Type.title, color = t.ink)
-            PortRow(w.str(R.string.port_vehicle), vStatus, t)
-            PortRow(w.str(R.string.port_location), lStatus, t)
-            PortRow(w.str(R.string.port_navi), nStatus, t)
-            SignalGrid(signals, t, w)
-        }
-    }
-}
-
-/** The agent layer made visible for the demo: the last knot written and the ribbon an agent reads, as the JSON itself. */
-@Composable
-private fun AgentIo(knot: Knot?, ribbon: RibbonState?, t: Tokens, w: Words) {
-    val mono = TextStyle(fontFamily = FontFamily.Monospace, fontSize = 15.sp, lineHeight = 20.sp)
-    Text(w.str(R.string.agent_io), style = Type.title, color = t.ink)
-    Text(w.str(R.string.agent_endpoint), style = Type.caption, color = t.ink2)
-    Text(w.str(R.string.agent_written), style = Type.caption, color = t.ink2)
-    Text(knot?.let { PrettyJson.encodeToString(Knot.serializer(), it) } ?: w.str(R.string.agent_none), style = mono, color = t.ink,
-        modifier = Modifier.fillMaxWidth().background(t.surface).padding(12.dp))
-    Text(w.str(R.string.agent_read), style = Type.caption, color = t.ink2)
-    Text(ribbon?.let { PrettyJson.encodeToString(RibbonState.serializer(), it) } ?: w.str(R.string.agent_none), style = mono, color = t.ink,
-        modifier = Modifier.fillMaxWidth().background(t.surface).padding(12.dp))
-}
-
-@Composable
-private fun PortRow(name: String, s: PortStatus, t: Tokens) {
-    Row(verticalAlignment = Alignment.CenterVertically) {
-        Text(if (s.live) "✓" else "–", style = Type.caption, color = if (s.live) t.good else t.muted, modifier = Modifier.width(28.dp))
-        Text(name, style = Type.caption, color = t.ink, modifier = Modifier.width(140.dp))
-        Text(s.note ?: s.source, style = Type.caption, color = t.ink2, maxLines = 1, overflow = TextOverflow.Ellipsis)
-    }
-}
-
-@Composable
-private fun SignalGrid(s: VehicleSignals, t: Tokens, w: Words) {
-    val on = w.str(R.string.on); val off = w.str(R.string.off)
-    val turn = when (s.turnSignal) { TurnSignal.LEFT -> w.str(R.string.left); TurnSignal.RIGHT -> w.str(R.string.right); TurnSignal.OFF -> off }
-    val gear = when (s.gear) { Gear.PARK -> "P"; Gear.DRIVE -> "D"; Gear.REVERSE -> "R"; Gear.NEUTRAL -> "N"; else -> "—" }
-    // The wiper row says the switch speed when the car reports it.
-    val wiper = when (s.wiperLevel) {
-        WiperLevel.INTERMITTENT -> w.str(R.string.wiper_intermittent)
-        WiperLevel.LOW -> w.str(R.string.wiper_low)
-        WiperLevel.HIGH -> w.str(R.string.wiper_high)
-        else -> if (s.wiper) on else off
-    }
-    val rows = listOf(
-        w.str(R.string.sig_gear) to gear, w.str(R.string.sig_speed) to (s.speedKmh?.let { "%.0f km/h".format(it) } ?: "—"),
-        w.str(R.string.sig_brake) to if (s.brake) w.str(R.string.pressed) else off, w.str(R.string.sig_turn) to turn,
-        w.str(R.string.sig_wheel) to Words.degrees(s.wheelAngleDeg), w.str(R.string.sig_wiper) to wiper,
-        w.str(R.string.sig_fog) to if (s.fogLight) on else off, w.str(R.string.sig_rear_fog) to if (s.rearFog) on else off,
-        w.str(R.string.sig_low_beam) to if (s.lowBeam) on else off, w.str(R.string.sig_temp) to (s.outsideTempC?.let { "%.1f °C".format(it) } ?: "—"),
-    )
-    Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-        rows.chunked(2).forEach { pair ->
-            Row {
-                pair.forEach { (k, v) ->
-                    Row(Modifier.weight(1f)) {
-                        Text(k, style = Type.caption, color = t.muted, modifier = Modifier.width(130.dp))
-                        Text(v, style = Type.captionNum, color = t.ink)
-                    }
-                }
-                if (pair.size == 1) Spacer(Modifier.weight(1f))
-            }
-        }
-    }
-}

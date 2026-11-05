@@ -155,6 +155,24 @@ function segmentAround(list, alongM) {
   return s;
 }
 
+// What each scenario is meant to show, for its card in the demo panel: which metric (drawn as its icon), where, in how
+// many cars. DemoRouteTest holds the ribbons to these.
+localWeather.story = [
+  { metric: 'hardBrakeRate', fromM: camera.alongM, cars: 3 },
+  { metric: 'wiperTurnedOnRate', fromM: tunnel.endAlongM, cars: 6 },
+  { metric: 'lateLaneChangeRate', fromM: ic.alongM, cars: 4 },
+  { metric: 'wiperFastRate', fromM: downpour.alongM, toM: downpour.endAlongM, cars: 4 },
+];
+rainEverywhere.story = [{ metric: 'wiperOnRate', fromM: 0, toM: lengthM, cars: N, expectDifferent: false }];
+stoppedCars.story = [{ metric: 'stopRate', fromM: stopAt, cars: 4 }];
+hangyeryeongFog.story = [
+  { metric: 'hardBrakeRate', fromM: pass.hairpinAt, cars: 4 },
+  { metric: 'hardBrakeRate', fromM: pass.camera.alongM, cars: 3 },
+  { metric: 'fogTurnedOnRate', fromM: pass.tunnel.endAlongM, cars: 6 },
+  { metric: 'rearFogRate', fromM: pass.tunnel.endAlongM, toM: pass.tunnel.endAlongM + 2500, cars: 4 },
+];
+hangyeryeongSleet.story = [{ metric: 'iceRiskRate', fromM: summit[0].alongM, toM: summit[1].endAlongM, cars: 7 }];
+
 const usual = {
   hardBrakeRate: 0.03, lateLaneChangeRate: 0.08, wiperTurnedOnRate: 0.03, fogTurnedOnRate: 0.02,
   wiperOnRate: 0.1, entryDecelKmh: 4, stopRate: 0.05,

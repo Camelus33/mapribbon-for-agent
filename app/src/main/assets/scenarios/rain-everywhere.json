@@ -123,5 +123,14 @@
         }
       ]
     }
+  ],
+  "story": [
+    {
+      "metric": "wiperOnRate",
+      "fromM": 0,
+      "toM": 34508,
+      "cars": 9,
+      "expectDifferent": false
+    }
   ]
 }

@@ -80,6 +80,9 @@
     <string name="details">자세히</string>
     <string name="details_hide">자세히 닫기</string>
     <string name="agent_io">에이전트가 쓰고 읽는 것</string>
+    <string name="flow_cars">차량</string>
+    <string name="flow_ribbons">리본</string>
+    <string name="flow_agents">에이전트</string>
     <string name="agent_written">마지막으로 쓴 매듭 (maptalk.knot/1)</string>
     <string name="agent_read">읽은 리본 (maptalk.ribbon/1)</string>
     <string name="agent_none">아직 없음</string>

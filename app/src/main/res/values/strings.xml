@@ -88,6 +88,9 @@
     <string name="details">Details</string>
     <string name="details_hide">Hide details</string>
     <string name="agent_io">What the agents write and read</string>
+    <string name="flow_cars">Cars</string>
+    <string name="flow_ribbons">Ribbons</string>
+    <string name="flow_agents">Agents</string>
     <string name="agent_written">Last knot written (maptalk.knot/1)</string>
     <string name="agent_read">Ribbon read (maptalk.ribbon/1)</string>
     <string name="agent_none">Nothing yet</string>

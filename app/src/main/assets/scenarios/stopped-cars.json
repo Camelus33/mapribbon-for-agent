@@ -113,5 +113,12 @@
       "widthClass": "NARROW",
       "segments": []
     }
+  ],
+  "story": [
+    {
+      "metric": "stopRate",
+      "fromM": 26641,
+      "cars": 4
+    }
   ]
 }

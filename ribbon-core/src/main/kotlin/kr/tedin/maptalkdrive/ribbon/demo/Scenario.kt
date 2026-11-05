@@ -23,6 +23,22 @@ data class Scenario(
     /** The route this scenario drives; scenarios written before there were two routes drive the expressway. */
     val routeId: String = "SY60E",
     val vehicles: List<SimVehicle>,
+    /** What the scenario is meant to show, for its card in the demo panel; the tests hold the ribbons to it. */
+    val story: List<StoryBeat> = emptyList(),
+)
+
+/**
+ * One thing a scenario makes happen: what (a ribbon metric, drawn as its icon), where (a point, or a stretch from `fromM`
+ * to `toM`) and in how many of the cars. `expectDifferent = false` marks a control: the cars do it, and no ribbon may
+ * call it different.
+ */
+@Serializable
+data class StoryBeat(
+    val metric: String,
+    val fromM: Double,
+    val toM: Double = fromM,
+    val cars: Int,
+    val expectDifferent: Boolean = true,
 )
 
 @Serializable

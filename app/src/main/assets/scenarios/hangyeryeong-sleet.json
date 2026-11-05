@@ -174,5 +174,13 @@
         }
       ]
     }
+  ],
+  "story": [
+    {
+      "metric": "iceRiskRate",
+      "fromM": 27578,
+      "toM": 31517,
+      "cars": 7
+    }
   ]
 }

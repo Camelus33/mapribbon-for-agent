@@ -145,6 +145,31 @@ class DemoRouteTest {
         assertEquals(0.0, s.getValue(aroundCamera.id).metrics[Metric.HARD_BRAKE_RATE], "the camera's braking stays with the camera")
     }
 
+    @Test fun `every scenario's story is what its ribbons show`() {
+        val names = File(assets, "scenarios").list()!!.map { it.removeSuffix(".json") }
+        assertTrue(names.size >= 5)
+        for (name in names) {
+            val scenario = RibbonJson.decodeFromString<Scenario>(File(assets, "scenarios/$name.json").readText())
+            assertTrue(scenario.story.isNotEmpty(), "$name has no story")
+            val set = anchorsOf(scenario.routeId)
+            val (_, s) = run(name)
+            for (beat in scenario.story) {
+                // A beat is shown by a different ribbon on an anchor whose stretch meets the beat's, with that metric among its reasons.
+                val shown = s.values.filter { st ->
+                    val a = set.anchors.single { it.id == st.anchor.id }
+                    st.deviation != Deviation.NONE && st.reasons.any { it.metric == beat.metric } &&
+                        a.zoneStartM <= beat.toM + 300 && a.zoneEndM >= beat.fromM - 300
+                }
+                if (beat.expectDifferent) {
+                    assertTrue(shown.isNotEmpty(), "$name: ${beat.metric} at ${beat.fromM} not shown")
+                    assertTrue(beat.cars in 3..scenario.vehicles.size)
+                } else {
+                    assertTrue(s.values.none { it.deviation != Deviation.NONE }, "$name is a control: nothing may be different")
+                }
+            }
+        }
+    }
+
     @Test fun `segments tile the open road between tunnels without gaps or overlaps`() {
         for (id in listOf("SY60E", "N44E")) {
             val set = anchorsOf(id)
