@@ -57,11 +57,11 @@ data class Briefing(
 
         const val SAME_THING_WITHIN_M = 3_000
 
-        /** What kind of thing a place's top reason is: fog lights on or switched on are both fog. */
+        /** What kind of thing a place's top reason is: front or rear fog lights, on or switched on, are all fog. */
         private fun family(item: BriefingItem): String {
             val m = item.state.reasons.firstOrNull()?.metric ?: return ""
             return when {
-                m.startsWith("fog") -> "fog"
+                m.startsWith("fog") || m.startsWith("rearFog") -> "fog"
                 m.startsWith("wiper") -> "wiper"
                 else -> m
             }

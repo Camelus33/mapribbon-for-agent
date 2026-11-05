@@ -118,6 +118,17 @@ class RibbonEngineTest {
         assertEquals(Deviation.HIGH, withTunnel.getValue("S2").deviation)
     }
 
+    @Test fun `a signal fewer than three cars report is not published for a segment`() {
+        val seg = Road.anchor("S", AnchorType.SEGMENT, 0, endAlongM = 2_000, before = 0, after = 0)
+        fun drive(reporting: Int) = (1..9).map { i -> knot("S", "v$i", now - i * min) { copy(wiperBefore = true, minTempC = if (i <= reporting) 0.5 else null) } }
+        val two = RibbonEngine(listOf(seg)).states(drive(2), now).single()
+        assertNull(two.metrics[Metric.ICE_RISK_RATE])
+        assertNull(two.metrics[Metric.OUTSIDE_TEMP_C])
+        val three = RibbonEngine(listOf(seg)).states(drive(3), now).single()
+        assertEquals(1.0, three.metrics[Metric.ICE_RISK_RATE], "all three that report are wet near freezing")
+        assertEquals(0.5, three.metrics[Metric.OUTSIDE_TEMP_C])
+    }
+
     @Test fun `without neighbours a high value is judged against the usual value alone`() {
         val alone = RibbonEngine(listOf(mid), usual).states(localRain().filter { it.anchorId == "M" }, now).single()
         assertEquals(Deviation.HIGH, alone.deviation)

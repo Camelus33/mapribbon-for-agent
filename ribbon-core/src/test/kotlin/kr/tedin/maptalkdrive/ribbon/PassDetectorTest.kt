@@ -3,10 +3,12 @@ package kr.tedin.maptalkdrive.ribbon
 import kr.tedin.maptalkdrive.ribbon.detect.PassDetector
 import kr.tedin.maptalkdrive.ribbon.detect.TurnSignal
 import kr.tedin.maptalkdrive.ribbon.geo.LngLat
+import kr.tedin.maptalkdrive.ribbon.geo.Sun
 import kr.tedin.maptalkdrive.ribbon.geo.distanceM
 import kr.tedin.maptalkdrive.ribbon.spec.AnchorType
 import kr.tedin.maptalkdrive.ribbon.spec.Knot
 import kr.tedin.maptalkdrive.ribbon.spec.LaneChangeSignal
+import kr.tedin.maptalkdrive.ribbon.spec.WiperLevel
 import kotlin.math.abs
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -115,5 +117,40 @@ class PassDetectorTest {
         val outside = run(Drive(speedAt = { if (it < 12_400) 90.0 else 60.0 }, brake = { it in 12_380.0..12_450.0 }), segment, camera).associateBy { it.anchorId }
         assertTrue(outside.getValue("S").hardBrake)
         assertFalse(outside.getValue("C").hardBrake)
+    }
+
+    /** 2027-01-15 12:30 KST: the sun is about 30 degrees up at 38 N. The default drive starts at 22:46 KST, in the dark. */
+    private val noon = 1_799_983_800_000L
+
+    @Test fun `a segment knot keeps the weather, from the fastest wipers to low beams by day`() {
+        val k = run(Drive(
+            startMs = noon,
+            wiperLevel = { if (it in 12_500.0..13_000.0) WiperLevel.HIGH else WiperLevel.LOW },
+            rearFog = { it in 13_200.0..13_300.0 },
+            tempC = { if (it < 13_000) 2.26 else 4.0 },
+            lowBeam = { it in 12_200.0..12_400.0 },
+        ), segment, camera).associateBy { it.anchorId }.getValue("S")
+        assertEquals(WiperLevel.HIGH, k.wiperMax)
+        assertTrue(k.rearFog)
+        assertEquals(2.5, k.minTempC, "rounded to half a degree")
+        assertEquals(true, k.lowBeamByDay)
+    }
+
+    @Test fun `low beams count only by day and away from facilities`() {
+        assertNull(run(Drive(lowBeam = { true }), segment).single().lowBeamByDay, "in the dark headlights say nothing")
+        val nearCamera = run(Drive(startMs = noon, lowBeam = { it in 13_250.0..13_550.0 }), segment, camera).associateBy { it.anchorId }.getValue("S")
+        assertEquals(false, nearCamera.lowBeamByDay, "inside the camera's zone they are not the segment's")
+        assertNull(run(Drive(startMs = noon, lowBeam = { true }), camera).single().lowBeamByDay, "facilities do not report it")
+    }
+
+    @Test fun `the sun is up at noon and down at midnight, lower in winter than in summer`() {
+        val seoul = 37.57 to 126.98
+        val summerNoon = 1_782_010_800_000L // 2026-06-21 12:00 KST
+        val winterNoon = 1_797_823_800_000L // 2026-12-21 12:30 KST
+        val summerMidnight = 1_782_054_000_000L // 2026-06-22 00:00 KST
+        assertTrue(Sun.elevationDeg(summerNoon, seoul.first, seoul.second) in 70.0..78.0)
+        assertTrue(Sun.elevationDeg(winterNoon, seoul.first, seoul.second) in 25.0..31.0)
+        assertTrue(Sun.elevationDeg(summerMidnight, seoul.first, seoul.second) < -20)
+        assertFalse(Sun.isDay(summerMidnight, seoul.first, seoul.second))
     }
 }

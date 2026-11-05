@@ -10,6 +10,7 @@ import kr.tedin.maptalkdrive.ribbon.spec.Reason
 import kr.tedin.maptalkdrive.ribbon.spec.RibbonState
 import kr.tedin.maptalkdrive.ribbon.spec.RibbonStatus
 import kr.tedin.maptalkdrive.ribbon.spec.Window
+import kr.tedin.maptalkdrive.ribbon.spec.WiperLevel
 import kotlin.math.abs
 
 data class EngineConfig(
@@ -65,6 +66,12 @@ class RibbonEngine(
 
     private fun metricsOf(type: AnchorType, ks: List<Knot>): Map<String, Double> {
         fun rate(p: (Knot) -> Boolean) = ks.count(p).toDouble() / ks.size
+        // For signals not every car reports (wiper switch, temperature, daylight): the share among the cars that did,
+        // and only when at least as many reported as a ribbon needs.
+        fun rateOf(p: (Knot) -> Boolean?): Double? {
+            val known = ks.mapNotNull(p)
+            return if (known.size < cfg.minVehicles) null else known.count { it }.toDouble() / known.size
+        }
         val m = linkedMapOf<String, Double>()
         m[Metric.HARD_BRAKE_RATE] = rate { it.hardBrake }
         m[Metric.WIPER_ON_RATE] = rate { it.wiperBefore || it.wiperAfter }
@@ -84,6 +91,14 @@ class RibbonEngine(
                 m[Metric.FOG_ON_RATE] = rate { it.fogBefore || it.fogAfter }
                 m[Metric.STOP_RATE] = rate { it.stoppedS > 0 }
                 median(ks.mapNotNull { it.speedAtKmh })?.let { m[Metric.SPEED_AT_KMH] = it }
+                // Weather, graded: fast wipers for heavy rain, rear fog lights for thick fog, low beams by day for
+                // poor light, and a wet road near freezing for ice.
+                rateOf { k -> k.wiperMax?.let { it == WiperLevel.HIGH } }?.let { m[Metric.WIPER_FAST_RATE] = it }
+                m[Metric.REAR_FOG_RATE] = rate { it.rearFog }
+                rateOf { it.lowBeamByDay }?.let { m[Metric.DAY_LOW_BEAM_RATE] = it }
+                rateOf { k -> k.minTempC?.let { t -> t <= Metric.ICE_TEMP_C && (k.wiperBefore || k.wiperAfter || k.fogBefore || k.fogAfter) } }
+                    ?.let { m[Metric.ICE_RISK_RATE] = it }
+                ks.mapNotNull { it.minTempC }.takeIf { it.size >= cfg.minVehicles }?.let(::median)?.let { m[Metric.OUTSIDE_TEMP_C] = it }
             }
         }
         return m.mapValues { (_, v) -> round3(v) }
@@ -151,7 +166,7 @@ class RibbonEngine(
  * around it is a difference there, rain everywhere is not.
  */
 private fun contextOnly(type: AnchorType): Set<String> =
-    if (type == AnchorType.SEGMENT) setOf(Metric.SPEED_AT_KMH) else setOf(Metric.SPEED_AT_KMH, Metric.WIPER_ON_RATE)
+    if (type == AnchorType.SEGMENT) setOf(Metric.SPEED_AT_KMH, Metric.OUTSIDE_TEMP_C) else setOf(Metric.SPEED_AT_KMH, Metric.WIPER_ON_RATE)
 
 internal fun median(xs: List<Double>): Double? {
     if (xs.isEmpty()) return null

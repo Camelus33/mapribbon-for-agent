@@ -61,15 +61,16 @@ class DemoRouteTest {
         val ic = s.getValue("서양양IC")
         assertTrue(ic.deviation != Deviation.NONE && ic.reasons.first().metric == Metric.LATE_LANE_CHANGE_RATE, ic.toString())
 
-        // The two segments past the tunnel, where three cars keep their fog lights on for 3 km; the rain itself covers
-        // every segment east of the tunnel alike, so it is not a difference on any of them.
+        // The rain itself covers every segment east of the tunnel alike, so it is not a difference on any of them; the
+        // downpour on one of them is: fast wipers there and nowhere around, and low beams by day with them.
         val different = s.values.filter { it.deviation != Deviation.NONE }.map { it.anchor.id }.sorted()
-        assertEquals(listOf("SY60E-C01", "SY60E-J01", "SY60E-S04", "SY60E-S05", "SY60E-T08"), different)
-        for (id in listOf("SY60E-S04", "SY60E-S05")) {
-            val seg = s.getValue(id)
-            assertEquals(Metric.FOG_ON_RATE, seg.reasons.single().metric, seg.gist)
-            assertEquals(Deviation.SOME, seg.deviation)
-        }
+        assertEquals(listOf("SY60E-C01", "SY60E-J01", "SY60E-S06", "SY60E-T08"), different)
+        val downpour = s.getValue("SY60E-S06")
+        assertEquals(Metric.WIPER_FAST_RATE, downpour.reasons.first().metric, downpour.gist)
+        assertEquals(Deviation.HIGH, downpour.deviation)
+        assertTrue(downpour.reasons.any { it.metric == Metric.DAY_LOW_BEAM_RATE }, "the scenario runs by day: ${downpour.reasons}")
+        assertEquals(4.0 / 9, downpour.metrics.getValue(Metric.WIPER_FAST_RATE), 0.001)
+        assertTrue(s.values.filter { it.anchor.type == AnchorType.SEGMENT && it.anchor.id != "SY60E-S06" }.none { (it.metrics[Metric.WIPER_FAST_RATE] ?: 0.0) > 0 })
         // The camera's hard braking stays with the camera: the segment around it saw none.
         assertEquals(0.0, s.getValue("SY60E-S03").metrics[Metric.HARD_BRAKE_RATE])
 
@@ -90,6 +91,22 @@ class DemoRouteTest {
         // Stopping is further above its usual (2%) than hard braking (3%), so it leads.
         assertEquals(Metric.STOP_RATE, seg.reasons.first().metric)
         assertEquals("26.0–27.3 km, 최근 1시간 9대 중 44%가 멈춤 (평소 2%).", seg.gist)
+    }
+
+    @Test fun `sleet at 1 degree over the summit reads as ice there and nowhere else`() {
+        val (_, s) = run("hangyeryeong-sleet")
+        assertTrue(listOf("N44E-S15", "N44E-S16").all { s.getValue(it).n == 9 }, "all nine cars over the summit inside the window")
+        val different = s.values.filter { it.deviation != Deviation.NONE }
+        assertEquals(listOf("N44E-S15", "N44E-S16"), different.map { it.anchor.id }.sorted())
+        for (seg in different) {
+            assertEquals(Metric.ICE_RISK_RATE, seg.reasons.first().metric, seg.gist)
+            assertEquals(7.0 / 9, seg.metrics.getValue(Metric.ICE_RISK_RATE), 0.001)
+            assertEquals(Deviation.HIGH, seg.deviation)
+            assertEquals(1.0, seg.metrics[Metric.OUTSIDE_TEMP_C], "temperature is context, published with the ribbon")
+            assertTrue(seg.reasons.none { it.metric == Metric.OUTSIDE_TEMP_C })
+        }
+        assertEquals(6.0, s.getValue("N44E-S05").metrics[Metric.OUTSIDE_TEMP_C])
+        assertEquals(0.0, s.getValue("N44E-S05").metrics[Metric.ICE_RISK_RATE])
     }
 
     @Test fun `rain over the whole road is reported as context, never as a difference`() {
@@ -115,7 +132,11 @@ class DemoRouteTest {
         assertEquals(Deviation.HIGH, hairpin.deviation, hairpin.gist)
         assertEquals(Metric.HARD_BRAKE_RATE, hairpin.reasons.first().metric)
         assertTrue(set.anchors.single { it.id == "N44E-S17" }.let { 32_425 in it.alongM..it.endAlongM }, "the segment holds the 32.4 km hairpin")
-        for (id in listOf("N44E-S25", "N44E-S26")) assertEquals(Metric.FOG_ON_RATE, s.getValue(id).reasons.first().metric)
+        for (id in listOf("N44E-S25", "N44E-S26")) {
+            val seg = s.getValue(id)
+            assertEquals(Metric.FOG_ON_RATE, seg.reasons.first().metric)
+            assertTrue(seg.reasons.any { it.metric == Metric.REAR_FOG_RATE }, "rear fog lights make it thick fog: ${seg.reasons}")
+        }
         // The fog past the tunnel is labeled once; the other labels go to the hairpin and the camera.
         val b = Briefing.build(set.anchors, s.values.toList())
         assertEquals(listOf("N44E-S17", "N44E-C01", "N44E-T01"), b.labeled.map { it.anchor.id })

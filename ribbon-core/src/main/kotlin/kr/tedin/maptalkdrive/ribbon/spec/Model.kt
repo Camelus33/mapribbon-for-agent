@@ -80,9 +80,24 @@ data class Knot(
     val fogBefore: Boolean = false,
     val fogAfter: Boolean = false,
     val widthClass: WidthClass? = null,
+    /** The fastest the front wipers ran in the zone; null when the car does not report its wiper switch. */
+    val wiperMax: WiperLevel? = null,
+    /** Rear fog lights on anywhere in the zone: drivers switch them on only in thick fog. */
+    val rearFog: Boolean = false,
+    /**
+     * Segments only: low beams on while the sun was more than 6° up, away from every facility's zone (headlights that
+     * switch on by themselves at a tunnel mouth do not count). Null when the car passed in the dark.
+     */
+    val lowBeamByDay: Boolean? = null,
+    /** The lowest outside temperature in the zone, to 0.5 °C; null when the car does not report it. */
+    val minTempC: Double? = null,
 ) {
     companion object { const val KNOT_SPEC = "maptalk.knot/1" }
 }
+
+/** How fast the front wipers ran, from the wiper switch. Mist and auto (speed unknown) count as intermittent. */
+@Serializable
+enum class WiperLevel { OFF, INTERMITTENT, LOW, HIGH }
 
 @Serializable
 enum class LaneChangeSignal {
@@ -135,6 +150,19 @@ object Metric {
     const val FOG_TURNED_ON_RATE = "fogTurnedOnRate"
     /** Segments: share of cars with fog lights on anywhere on the segment. */
     const val FOG_ON_RATE = "fogOnRate"
+    /** Segments: share of cars whose wipers ran at high speed (of those that report the wiper switch). */
+    const val WIPER_FAST_RATE = "wiperFastRate"
+    /** Segments: share of cars with rear fog lights on. */
+    const val REAR_FOG_RATE = "rearFogRate"
+    /** Segments: share of cars with low beams on in daylight (of those that passed while the sun was up). */
+    const val DAY_LOW_BEAM_RATE = "dayLowBeamRate"
+    /** Segments: share of cars at or below [ICE_TEMP_C] with wipers or fog lights on (of those that report temperature). */
+    const val ICE_RISK_RATE = "iceRiskRate"
+    /** Segments, context only: median of the cars' lowest outside temperature on the segment. */
+    const val OUTSIDE_TEMP_C = "outsideTempC"
+
+    /** Wet road at or below this outside temperature can freeze: air is warmer than the road surface on cold days. */
+    const val ICE_TEMP_C = 3.0
     const val WIPER_ON_RATE = "wiperOnRate"
     const val STOP_RATE = "stopRate"
     const val ENTRY_DECEL_KMH = "entryDecelKmh"

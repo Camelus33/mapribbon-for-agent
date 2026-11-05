@@ -5,7 +5,7 @@
   "functions": [
     {
       "name": "get_route_ribbons",
-      "description": "Ribbons on the current route in driving order: one per road facility (tunnel, junction, toll gate, camera) and one per SEGMENT, a stretch of about 2 km of open road between them (hard braking, stops, wipers, fog lights on that stretch). Each says whether the last 15 to 180 minutes of cars behaved differently from usual there (deviation NONE, SOME, HIGH), why (metric, value, usual value), how many cars that is based on, and when the most recent of them passed (window.lastMs, rounded down to 5 minutes). Places with fewer than three cars are NOT_ENOUGH and must not be described as usual.",
+      "description": "Ribbons on the current route in driving order: one per road facility (tunnel, junction, toll gate, camera) and one per SEGMENT, a stretch of about 2 km of open road between them (hard braking, stops, and weather graded by what cars did: wipers on or fast, fog lights front or rear, low beams in daylight, wet road at 3 C or below as iceRiskRate, outsideTempC as context). Each says whether the last 15 to 180 minutes of cars behaved differently from usual there (deviation NONE, SOME, HIGH), why (metric, value, usual value), how many cars that is based on, and when the most recent of them passed (window.lastMs, rounded down to 5 minutes). Places with fewer than three cars are NOT_ENOUGH and must not be described as usual.",
       "parameters": {
         "type": "object",
         "properties": {

@@ -93,7 +93,10 @@ class RibbonChannel private constructor(context: Context) {
             location.fixes.collect { fix ->
                 val d = recorder ?: return@collect
                 val sig = vehicle.signals.value
-                val sample = Sample(fix.tMs, LngLat(fix.lon, fix.lat), sig.speedKmh, sig.brake, sig.turnSignal, sig.wheelAngleDeg, sig.wiper, sig.fogLight)
+                val sample = Sample(
+                    fix.tMs, LngLat(fix.lon, fix.lat), sig.speedKmh, sig.brake, sig.turnSignal, sig.wheelAngleDeg, sig.wiper, sig.fogLight,
+                    wiperLevel = sig.wiperLevel, lowBeam = sig.lowBeam, rearFog = sig.rearFog, outsideTempC = sig.outsideTempC,
+                )
                 val tied = d.accept(sample)
                 if (tied.isNotEmpty()) _state.update { it.copy(myKnots = it.myKnots + tied.size) }
                 addKnots(tied, ctx.getString(R.string.log_this_car))

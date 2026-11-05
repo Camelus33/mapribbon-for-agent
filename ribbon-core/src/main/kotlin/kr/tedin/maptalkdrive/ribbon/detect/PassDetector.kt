@@ -2,11 +2,13 @@ package kr.tedin.maptalkdrive.ribbon.detect
 
 import kr.tedin.maptalkdrive.ribbon.geo.LngLat
 import kr.tedin.maptalkdrive.ribbon.geo.RouteIndex
+import kr.tedin.maptalkdrive.ribbon.geo.Sun
 import kr.tedin.maptalkdrive.ribbon.spec.Anchor
 import kr.tedin.maptalkdrive.ribbon.spec.AnchorType
 import kr.tedin.maptalkdrive.ribbon.spec.Knot
 import kr.tedin.maptalkdrive.ribbon.spec.LaneChangeSignal
 import kr.tedin.maptalkdrive.ribbon.spec.WidthClass
+import kr.tedin.maptalkdrive.ribbon.spec.WiperLevel
 import kotlin.math.abs
 
 enum class TurnSignal { OFF, LEFT, RIGHT }
@@ -25,6 +27,11 @@ data class Sample(
     val wheelAngleDeg: Double? = null,
     val wiper: Boolean = false,
     val fogLight: Boolean = false,
+    /** The wiper switch, where the car reports it; `wiper` stays the plain on/off. */
+    val wiperLevel: WiperLevel? = null,
+    val lowBeam: Boolean = false,
+    val rearFog: Boolean = false,
+    val outsideTempC: Double? = null,
 )
 
 data class DetectorConfig(
@@ -167,7 +174,17 @@ class PassDetector(
             fogBefore = before.any { it.s.fogLight },
             fogAfter = after.any { it.s.fogLight },
             widthClass = widthClass,
+            wiperMax = ps.mapNotNull { it.s.wiperLevel }.maxOrNull(),
+            rearFog = ps.any { it.s.rearFog },
+            lowBeamByDay = if (segment) lowBeamByDay(ps.filter(::own)) else null,
+            minTempC = ps.mapNotNull { it.s.outsideTempC }.minOrNull()?.let { Math.round(it * 2) / 2.0 },
         )
+    }
+
+    /** Low beams on in daylight: null when none of the samples was taken with the sun up. */
+    private fun lowBeamByDay(ps: List<PassSample>): Boolean? {
+        val day = ps.filter { p -> p.s.fix?.let { Sun.isDay(p.s.tMs, it.lat, it.lon) } == true }
+        return if (day.isEmpty()) null else day.any { it.s.lowBeam }
     }
 
     private fun hardBrake(ps: List<PassSample>): Boolean {

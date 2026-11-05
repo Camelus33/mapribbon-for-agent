@@ -1,5 +1,6 @@
 package kr.tedin.maptalkdrive.port
 
+import kr.tedin.maptalkdrive.ribbon.spec.WiperLevel
 import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.StateFlow
 import kr.tedin.maptalkdrive.ribbon.detect.TurnSignal
@@ -15,6 +16,12 @@ data class VehicleSignals(
     val fogLight: Boolean = false,
     val gear: Gear = Gear.UNKNOWN,
     val speedKmh: Double? = null,
+    /** The front wiper switch, coarsened; null until the car has answered. */
+    val wiperLevel: WiperLevel? = null,
+    val lowBeam: Boolean = false,
+    val rearFog: Boolean = false,
+    /** Outside air temperature from AAOS (ENV_OUTSIDE_TEMPERATURE); null where the car has none. */
+    val outsideTempC: Double? = null,
 )
 
 data class Fix(val tMs: Long, val lat: Double, val lon: Double)

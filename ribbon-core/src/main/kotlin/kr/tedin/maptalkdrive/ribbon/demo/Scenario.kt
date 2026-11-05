@@ -7,6 +7,7 @@ import kr.tedin.maptalkdrive.ribbon.geo.RouteIndex
 import kr.tedin.maptalkdrive.ribbon.spec.Anchor
 import kr.tedin.maptalkdrive.ribbon.spec.AnchorType
 import kr.tedin.maptalkdrive.ribbon.spec.WidthClass
+import kr.tedin.maptalkdrive.ribbon.spec.WiperLevel
 
 /**
  * A simulated drive for the offline demo. Every vehicle is described by what it does over stretches of the route,
@@ -31,6 +32,8 @@ data class SimVehicle(
     val startMinutesAgo: Int,
     val kmh: Double = 95.0,
     val widthClass: WidthClass? = null,
+    /** Outside temperature the car reports on the whole drive; null for a car that reports none. */
+    val tempC: Double? = null,
     val segments: List<Segment> = emptyList(),
 )
 
@@ -45,6 +48,11 @@ data class Segment(
     val brake: Boolean? = null,
     val turn: TurnSignal? = null,
     val wheelDeg: Double? = null,
+    /** The wiper switch; setting it also switches the wipers on (unless `wiper` says otherwise). */
+    val wiperLevel: WiperLevel? = null,
+    val lowBeam: Boolean? = null,
+    val rearFog: Boolean? = null,
+    val tempC: Double? = null,
 )
 
 object ScenarioDrive {
@@ -69,6 +77,8 @@ object ScenarioDrive {
             val seg = v.segments.filter { along >= it.fromM && along < it.toM }
             fun <T> pick(f: (Segment) -> T?): T? = seg.lastOrNull { f(it) != null }?.let(f)
             val kmh = pick { it.kmh } ?: v.kmh
+            val level = pick { it.wiperLevel }
+            val wiperOn = pick { it.wiper } ?: (level != null && level != WiperLevel.OFF)
             val inTunnel = tunnels.any { along > it.alongM + 20 && along < it.endAlongM - 20 }
             yield(
                 Sample(
@@ -78,8 +88,12 @@ object ScenarioDrive {
                     brake = pick { it.brake } ?: false,
                     turnSignal = pick { it.turn } ?: TurnSignal.OFF,
                     wheelAngleDeg = pick { it.wheelDeg } ?: 0.0,
-                    wiper = pick { it.wiper } ?: false,
+                    wiper = wiperOn,
                     fogLight = pick { it.fog } ?: false,
+                    wiperLevel = level ?: if (wiperOn) WiperLevel.LOW else WiperLevel.OFF,
+                    lowBeam = pick { it.lowBeam } ?: false,
+                    rearFog = pick { it.rearFog } ?: false,
+                    outsideTempC = pick { it.tempC } ?: v.tempC,
                 ),
             )
             along += kmh / 3.6 * stepMs / 1000.0

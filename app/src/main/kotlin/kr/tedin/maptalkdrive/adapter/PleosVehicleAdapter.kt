@@ -7,6 +7,7 @@ import ai.pleos.playground.vehicle.constant.area.WindowValue
 import ai.pleos.playground.vehicle.constant.control.LightState
 import ai.pleos.playground.vehicle.constant.control.VehicleGear
 import ai.pleos.playground.vehicle.constant.control.WiperState
+import ai.pleos.playground.vehicle.constant.control.WiperSwitch
 import ai.pleos.playground.vehicle.listener.BrakePedalStatusListener
 import ai.pleos.playground.vehicle.listener.GearSelectionListener
 import ai.pleos.playground.vehicle.listener.LightStateListener
@@ -18,6 +19,8 @@ import android.car.VehiclePropertyIds
 import android.car.hardware.CarPropertyValue
 import android.car.hardware.property.CarPropertyManager
 import android.content.Context
+import android.os.Handler
+import android.os.Looper
 import android.util.Log
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -28,9 +31,11 @@ import kr.tedin.maptalkdrive.port.PortStatus
 import kr.tedin.maptalkdrive.port.VehiclePort
 import kr.tedin.maptalkdrive.port.VehicleSignals
 import kr.tedin.maptalkdrive.ribbon.detect.TurnSignal
+import kr.tedin.maptalkdrive.ribbon.spec.WiperLevel
 
 /**
- * Vehicle signals from the Pleos Vehicle SDK, plus speed from AAOS CarPropertyManager (the SDK has no speed).
+ * Vehicle signals from the Pleos Vehicle SDK, plus speed and outside temperature from AAOS CarPropertyManager (the SDK
+ * has neither).
  * Every registration is guarded on its own: a platform without one signal still delivers the others, and a platform
  * without the Pleos service at all leaves the app running.
  *
@@ -82,6 +87,43 @@ class PleosVehicleAdapter(context: Context) : VehiclePort {
         }
         override fun onFailed(exception: Exception) = fail("fog", exception)
     }
+    private val lowBeam = object : LightStateListener {
+        override fun onLightStateUpdated(state: LightState?) {
+            // Daytime running lights are not low beams: they are on whenever the car runs.
+            got("lowBeam"); _signals.update { it.copy(lowBeam = state == LightState.ON) }
+        }
+        override fun onFailed(exception: Exception) = fail("lowBeam", exception)
+    }
+    private val rearFog = object : LightStateListener {
+        override fun onLightStateUpdated(state: LightState?) {
+            got("rearFog"); _signals.update { it.copy(rearFog = state == LightState.ON) }
+        }
+        override fun onFailed(exception: Exception) = fail("rearFog", exception)
+    }
+    private val temp = object : CarPropertyManager.CarPropertyEventCallback {
+        override fun onChangeEvent(value: CarPropertyValue<*>) {
+            val c = (value.value as? Float) ?: return
+            got("temp"); _signals.update { it.copy(outsideTempC = c.toDouble()) }
+        }
+        override fun onErrorEvent(propertyId: Int, areaId: Int) = Unit
+    }
+
+    /** The SDK reports the wiper switch only on request, so it is asked every few seconds. */
+    private val handler = Handler(Looper.getMainLooper())
+    private val pollWiper = object : Runnable {
+        override fun run() {
+            val v = vehicle ?: return
+            runCatching {
+                v.getWiper().getCurrentWiperSwitch(
+                    WindowArea(WindowValue.FRONT_WINDSHIELD),
+                    { sw -> got("wiperSwitch"); _signals.update { it.copy(wiperLevel = levelOf(sw)) } },
+                    { e -> fail("wiperSwitch", e) },
+                )
+            }.onFailure { fail("wiperSwitch", it as? Exception ?: Exception(it)) }
+            handler.postDelayed(this, WIPER_POLL_MS)
+        }
+    }
+
     private val gear = object : GearSelectionListener {
         override fun onSelected(gear: VehicleGear?) {
             got("gear")
@@ -121,13 +163,20 @@ class PleosVehicleAdapter(context: Context) : VehiclePort {
             guard("wheel") { v.getSteeringWheel().registerSteeringWheelAngle(wheel) }
             guard("wiper") { v.getWiper().registerWiperState(WindowArea(WindowValue.FRONT_WINDSHIELD), wiper) }
             guard("fog") { v.getLight().registerFrontFogLightState(fog) }
+            guard("rearFog") { v.getLight().registerRearFogLightState(rearFog) }
+            guard("lowBeam") { v.getLight().registerLowBeamLightState(lowBeam) }
             guard("gear") { v.getGear().registerGearSelection(gear) }
+            handler.post(pollWiper)
         }
         guard("speed") {
             val c = Car.createCar(ctx)
             car = c
             val cpm = c.getCarManager(Car.PROPERTY_SERVICE) as CarPropertyManager
             cpm.registerCallback(speed, VehiclePropertyIds.PERF_VEHICLE_SPEED, CarPropertyManager.SENSOR_RATE_NORMAL)
+        }
+        guard("temp") {
+            val cpm = car!!.getCarManager(Car.PROPERTY_SERVICE) as CarPropertyManager
+            cpm.registerCallback(temp, VehiclePropertyIds.ENV_OUTSIDE_TEMPERATURE, CarPropertyManager.SENSOR_RATE_NORMAL)
         }
         refreshStatus()
     }
@@ -139,12 +188,16 @@ class PleosVehicleAdapter(context: Context) : VehiclePort {
             runCatching { v.getSteeringWheel().unregisterSteeringWheelAngle(wheel) }
             runCatching { v.getWiper().unregisterWiperState(WindowArea(WindowValue.FRONT_WINDSHIELD), wiper) }
             runCatching { v.getLight().unregisterFrontFogLightState(fog) }
+            runCatching { v.getLight().unregisterRearFogLightState(rearFog) }
+            runCatching { v.getLight().unregisterLowBeamLightState(lowBeam) }
             runCatching { v.getGear().unregisterGearSelection(gear) }
             runCatching { v.release() }
         }
+        handler.removeCallbacks(pollWiper)
         vehicle = null
         car?.let { c ->
             runCatching { (c.getCarManager(Car.PROPERTY_SERVICE) as CarPropertyManager).unregisterCallback(speed) }
+            runCatching { (c.getCarManager(Car.PROPERTY_SERVICE) as CarPropertyManager).unregisterCallback(temp) }
             runCatching { c.disconnect() }
         }
         car = null
@@ -167,7 +220,7 @@ class PleosVehicleAdapter(context: Context) : VehiclePort {
             note = when {
                 vehicle == null && heard.isEmpty() -> ctx.getString(R.string.port_vehicle_missing)
                 heard.isEmpty() -> ctx.getString(R.string.port_vehicle_registered)
-                else -> ctx.getString(R.string.port_vehicle_signals, heard.size) + if (missing.isNotEmpty()) " · " + ctx.getString(R.string.port_vehicle_failed, missing.joinToString()) else ""
+                else -> ctx.getString(R.string.port_vehicle_signals, heard.size, SIGNALS) + if (missing.isNotEmpty()) " · " + ctx.getString(R.string.port_vehicle_failed, missing.joinToString()) else ""
             },
         )
     }
@@ -176,5 +229,19 @@ class PleosVehicleAdapter(context: Context) : VehiclePort {
         try { block() } catch (e: Throwable) { Log.w(TAG, "register $name failed", e); failed += name }
     }
 
-    private companion object { const val TAG = "PleosVehicle" }
+    private companion object {
+        const val TAG = "PleosVehicle"
+        const val WIPER_POLL_MS = 3_000L
+        /** brake, turn, wheel, wiper, wiperSwitch, fog, rearFog, lowBeam, gear, speed, temp */
+        const val SIGNALS = 11
+
+        /** The switch, coarsened to what says something about rain: mist and auto (speed unknown) are intermittent. */
+        fun levelOf(sw: WiperSwitch?): WiperLevel = when (sw) {
+            WiperSwitch.CONTINUOUS_LEVEL_1 -> WiperLevel.LOW
+            WiperSwitch.CONTINUOUS_LEVEL_2, WiperSwitch.CONTINUOUS_LEVEL_3, WiperSwitch.CONTINUOUS_LEVEL_4, WiperSwitch.CONTINUOUS_LEVEL_5 -> WiperLevel.HIGH
+            WiperSwitch.MIST, WiperSwitch.AUTO, WiperSwitch.INTERMITTENT_LEVEL_1, WiperSwitch.INTERMITTENT_LEVEL_2,
+            WiperSwitch.INTERMITTENT_LEVEL_3, WiperSwitch.INTERMITTENT_LEVEL_4, WiperSwitch.INTERMITTENT_LEVEL_5 -> WiperLevel.INTERMITTENT
+            else -> WiperLevel.OFF
+        }
+    }
 }

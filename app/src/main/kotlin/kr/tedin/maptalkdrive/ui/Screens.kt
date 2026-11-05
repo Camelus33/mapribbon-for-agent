@@ -74,6 +74,7 @@ import kr.tedin.maptalkdrive.ribbon.spec.Deviation
 import kr.tedin.maptalkdrive.ribbon.spec.Knot
 import kr.tedin.maptalkdrive.ribbon.spec.RibbonState
 import kr.tedin.maptalkdrive.ribbon.spec.RibbonStatus
+import kr.tedin.maptalkdrive.ribbon.spec.WiperLevel
 
 private val Gutter = 48.dp
 private val Touch = 76.dp
@@ -615,11 +616,19 @@ private fun SignalGrid(s: VehicleSignals, t: Tokens, w: Words) {
     val on = w.str(R.string.on); val off = w.str(R.string.off)
     val turn = when (s.turnSignal) { TurnSignal.LEFT -> w.str(R.string.left); TurnSignal.RIGHT -> w.str(R.string.right); TurnSignal.OFF -> off }
     val gear = when (s.gear) { Gear.PARK -> "P"; Gear.DRIVE -> "D"; Gear.REVERSE -> "R"; Gear.NEUTRAL -> "N"; else -> "—" }
+    // The wiper row says the switch speed when the car reports it.
+    val wiper = when (s.wiperLevel) {
+        WiperLevel.INTERMITTENT -> w.str(R.string.wiper_intermittent)
+        WiperLevel.LOW -> w.str(R.string.wiper_low)
+        WiperLevel.HIGH -> w.str(R.string.wiper_high)
+        else -> if (s.wiper) on else off
+    }
     val rows = listOf(
         w.str(R.string.sig_gear) to gear, w.str(R.string.sig_speed) to (s.speedKmh?.let { "%.0f km/h".format(it) } ?: "—"),
         w.str(R.string.sig_brake) to if (s.brake) w.str(R.string.pressed) else off, w.str(R.string.sig_turn) to turn,
-        w.str(R.string.sig_wheel) to Words.degrees(s.wheelAngleDeg), w.str(R.string.sig_wiper) to if (s.wiper) on else off,
-        w.str(R.string.sig_fog) to if (s.fogLight) on else off,
+        w.str(R.string.sig_wheel) to Words.degrees(s.wheelAngleDeg), w.str(R.string.sig_wiper) to wiper,
+        w.str(R.string.sig_fog) to if (s.fogLight) on else off, w.str(R.string.sig_rear_fog) to if (s.rearFog) on else off,
+        w.str(R.string.sig_low_beam) to if (s.lowBeam) on else off, w.str(R.string.sig_temp) to (s.outsideTempC?.let { "%.1f °C".format(it) } ?: "—"),
     )
     Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
         rows.chunked(2).forEach { pair ->

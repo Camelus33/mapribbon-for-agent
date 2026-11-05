@@ -60,6 +60,59 @@ fun DrawScope.issueIcon(metric: String?, c: Offset, s: Float, ink: Color) {
             }
             drawPath(wave, ink, style = stroke)
         }
+        Metric.WIPER_FAST_RATE -> {
+            // The wiper symbol with rain on the glass: two arms, three drops.
+            val glass = Path().apply {
+                moveTo(c.x - s * 0.46f, c.y - s * 0.2f)
+                quadraticBezierTo(c.x, c.y - s * 0.44f, c.x + s * 0.46f, c.y - s * 0.2f)
+                lineTo(c.x + s * 0.36f, c.y + s * 0.3f)
+                quadraticBezierTo(c.x, c.y + s * 0.2f, c.x - s * 0.36f, c.y + s * 0.3f)
+                close()
+            }
+            drawPath(glass, ink, style = stroke)
+            line(-0.14f, 0.22f, -0.32f, -0.12f)
+            line(0.14f, 0.22f, -0.04f, -0.16f)
+            for ((x, y) in listOf(0.18f to -0.12f, 0.28f to 0.04f, 0.06f to 0.0f)) drawCircle(ink, w * 0.75f, Offset(c.x + s * x, c.y + s * y))
+        }
+        Metric.REAR_FOG_RATE -> {
+            // Rear fog lamp (ISO 2575): the lamp facing right, straight beams, a wavy line through them.
+            val lamp = Path().apply {
+                moveTo(c.x - s * 0.06f, c.y - s * 0.3f)
+                cubicTo(c.x - s * 0.52f, c.y - s * 0.3f, c.x - s * 0.52f, c.y + s * 0.3f, c.x - s * 0.06f, c.y + s * 0.3f)
+                close()
+            }
+            drawPath(lamp, ink, style = stroke)
+            for (y in listOf(-0.18f, 0f, 0.18f)) line(0.06f, y, 0.46f, y)
+            val wave = Path().apply {
+                moveTo(c.x + s * 0.26f, c.y - s * 0.36f)
+                quadraticBezierTo(c.x + s * 0.36f, c.y - s * 0.18f, c.x + s * 0.26f, c.y)
+                quadraticBezierTo(c.x + s * 0.16f, c.y + s * 0.18f, c.x + s * 0.26f, c.y + s * 0.36f)
+            }
+            drawPath(wave, ink, style = stroke)
+        }
+        Metric.DAY_LOW_BEAM_RATE -> {
+            // Low beam (ISO 2575): the lamp facing left, beams slanting down to the road.
+            val lamp = Path().apply {
+                moveTo(c.x + s * 0.06f, c.y - s * 0.3f)
+                cubicTo(c.x + s * 0.52f, c.y - s * 0.3f, c.x + s * 0.52f, c.y + s * 0.3f, c.x + s * 0.06f, c.y + s * 0.3f)
+                close()
+            }
+            drawPath(lamp, ink, style = stroke)
+            for (y in listOf(-0.2f, -0.02f, 0.16f)) line(-0.06f, y, -0.44f, y + 0.14f)
+        }
+        Metric.ICE_RISK_RATE -> {
+            // A snowflake, as on the icy-road warning lamp: three bars and a small V at each end.
+            for (k in 0 until 6) {
+                val a = Math.toRadians(90.0 + 60.0 * k)
+                val tip = Offset(c.x + (s * 0.42f * cos(a)).toFloat(), c.y - (s * 0.42f * sin(a)).toFloat())
+                drawLine(ink, c, tip, w, StrokeCap.Round)
+                val mid = Offset(c.x + (s * 0.27f * cos(a)).toFloat(), c.y - (s * 0.27f * sin(a)).toFloat())
+                for (side in listOf(-1, 1)) {
+                    val b = a + Math.toRadians(40.0 * side)
+                    drawLine(ink, mid, Offset(mid.x + (s * 0.13f * cos(b)).toFloat(), mid.y - (s * 0.13f * sin(b)).toFloat()), w * 0.8f, StrokeCap.Round)
+                }
+            }
+        }
         Metric.HARD_BRAKE_RATE -> {
             // The brake disc of the dashboard brake symbol, pressed hard: a filled disc inside the bracket arcs.
             drawCircle(ink, s * 0.24f, c, style = stroke)

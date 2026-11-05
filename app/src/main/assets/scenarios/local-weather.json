@@ -2,9 +2,9 @@
   "spec": "maptalk.scenario/1",
   "id": "local-weather",
   "routeId": "SY60E",
-  "title": "인제양양터널 너머 비, 서양양IC 직전 끼어들기",
-  "titleEn": "Rain past the Inje-Yangyang Tunnel, late merges before W.Yangyang IC",
-  "description": "영서는 맑고 영동은 비. 9대 중 6대가 인제양양터널 출구에서 와이퍼를 켜고 3대는 안개등도 켠다. 4대가 서양양IC 300m 안에서 방향지시등을 켜고, 3대가 가상 단속카메라 앞에서 급제동한다.",
+  "title": "인제양양터널 너머 비와 폭우, 서양양IC 직전 끼어들기",
+  "titleEn": "Rain and a downpour past the Inje-Yangyang Tunnel, late merges before W.Yangyang IC",
+  "description": "영서는 맑고 영동은 비. 9대 중 6대가 인제양양터널 출구에서 와이퍼를 켜고, 그중 4대는 26.0–27.3 km 구간에서 와이퍼를 빠르게 돌리고 전조등을 켠다. 4대가 서양양IC 300m 안에서 방향지시등을 켜고, 3대가 가상 단속카메라 앞에서 급제동한다.",
   "vehicles": [
     {
       "id": "sim-1",
@@ -18,9 +18,10 @@
           "wiper": true
         },
         {
-          "fromM": 23015,
-          "toM": 25985,
-          "fog": true
+          "fromM": 26033,
+          "toM": 27248,
+          "wiperLevel": "HIGH",
+          "lowBeam": true
         },
         {
           "fromM": 7702,
@@ -46,9 +47,10 @@
           "wiper": true
         },
         {
-          "fromM": 23015,
-          "toM": 25985,
-          "fog": true
+          "fromM": 26033,
+          "toM": 27248,
+          "wiperLevel": "HIGH",
+          "lowBeam": true
         }
       ]
     },
@@ -64,9 +66,10 @@
           "wiper": true
         },
         {
-          "fromM": 23015,
-          "toM": 25985,
-          "fog": true
+          "fromM": 26033,
+          "toM": 27248,
+          "wiperLevel": "HIGH",
+          "lowBeam": true
         },
         {
           "fromM": 24179,
@@ -85,6 +88,12 @@
           "fromM": 23015,
           "toM": 34508,
           "wiper": true
+        },
+        {
+          "fromM": 26033,
+          "toM": 27248,
+          "wiperLevel": "HIGH",
+          "lowBeam": true
         },
         {
           "fromM": 24179,

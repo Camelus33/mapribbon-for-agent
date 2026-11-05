@@ -45,10 +45,18 @@
     <string name="issue_hard_brake">급제동</string>
     <string name="issue_stop">멈춘 차</string>
     <string name="issue_entry_decel">진입 급감속</string>
+    <string name="issue_wiper_fast">와이퍼 빠르게</string>
+    <string name="issue_rear_fog">뒤 안개등 켬</string>
+    <string name="issue_day_beam">낮에 전조등 켬</string>
+    <string name="issue_ice">어는점 근처 와이퍼</string>
     <string name="issue_other">평소와 다름</string>
 
     <string name="meaning_rain">비 가능성</string>
     <string name="meaning_fog">안개 가능성</string>
+    <string name="meaning_heavy_rain">폭우 가능성</string>
+    <string name="meaning_thick_fog">짙은 안개 가능성</string>
+    <string name="meaning_ice">결빙 가능성</string>
+    <string name="meaning_dark">시야 나쁨 가능성</string>
     <string name="meaning_holdup">정체나 장애물 가능성</string>
     <string name="meaning_camera_brake">카메라 앞 급감속 흐름</string>
     <string name="meaning_exit_busy">출구 차로 혼잡 가능성</string>
@@ -87,6 +95,12 @@
     <string name="sig_wheel">앞바퀴 각도</string>
     <string name="sig_wiper">와이퍼</string>
     <string name="sig_fog">안개등</string>
+    <string name="sig_rear_fog">뒤 안개등</string>
+    <string name="sig_low_beam">전조등</string>
+    <string name="sig_temp">외기온도</string>
+    <string name="wiper_intermittent">간헐</string>
+    <string name="wiper_low">저속</string>
+    <string name="wiper_high">고속</string>
     <string name="on">켜짐</string>
     <string name="off">꺼짐</string>
     <string name="pressed">밟음</string>
@@ -106,7 +120,7 @@
     <string name="port_navi_missing">내비 서비스 없음</string>
     <string name="port_vehicle_missing">Vehicle 서비스 없음</string>
     <string name="port_vehicle_registered">등록함 · 아직 받은 신호 없음</string>
-    <string name="port_vehicle_signals">신호 %1$d/7 수신</string>
+    <string name="port_vehicle_signals">신호 %1$d/%2$d 수신</string>
     <string name="port_vehicle_failed">실패: %1$s</string>
 
     <string name="log_scenario">시나리오: %1$s</string>

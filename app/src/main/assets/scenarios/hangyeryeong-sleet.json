@@ -1,0 +1,178 @@
+{
+  "spec": "maptalk.scenario/1",
+  "id": "hangyeryeong-sleet",
+  "routeId": "N44E",
+  "title": "한계령 정상 부근 진눈깨비: 결빙 가능성",
+  "titleEn": "Sleet near the Hangyeryeong summit: possible ice",
+  "description": "골짜기는 6°C, 고개 마루인 27.6–29.5 km–29.5–31.5 km 구간은 1°C. 그 구간에서 9대 중 7대가 와이퍼를 켜고 전조등이 켜진다. 젖은 노면이 어는점 근처라 결빙 가능성으로 읽힌다.",
+  "vehicles": [
+    {
+      "id": "sim-1",
+      "startMinutesAgo": 50,
+      "kmh": 56,
+      "widthClass": "MEDIUM",
+      "tempC": 6,
+      "segments": [
+        {
+          "fromM": 27578,
+          "toM": 31517,
+          "tempC": 1
+        },
+        {
+          "fromM": 27618,
+          "toM": 31477,
+          "wiperLevel": "INTERMITTENT",
+          "lowBeam": true
+        }
+      ]
+    },
+    {
+      "id": "sim-2",
+      "startMinutesAgo": 53,
+      "kmh": 58,
+      "widthClass": "WIDE",
+      "tempC": 6,
+      "segments": [
+        {
+          "fromM": 27578,
+          "toM": 31517,
+          "tempC": 1
+        },
+        {
+          "fromM": 27618,
+          "toM": 31477,
+          "wiperLevel": "INTERMITTENT",
+          "lowBeam": true
+        }
+      ]
+    },
+    {
+      "id": "sim-3",
+      "startMinutesAgo": 56,
+      "kmh": 60,
+      "widthClass": "MEDIUM",
+      "tempC": 6,
+      "segments": [
+        {
+          "fromM": 27578,
+          "toM": 31517,
+          "tempC": 1
+        },
+        {
+          "fromM": 27618,
+          "toM": 31477,
+          "wiperLevel": "INTERMITTENT",
+          "lowBeam": true
+        }
+      ]
+    },
+    {
+      "id": "sim-4",
+      "startMinutesAgo": 59,
+      "kmh": 62,
+      "widthClass": "NARROW",
+      "tempC": 6,
+      "segments": [
+        {
+          "fromM": 27578,
+          "toM": 31517,
+          "tempC": 1
+        },
+        {
+          "fromM": 27618,
+          "toM": 31477,
+          "wiperLevel": "INTERMITTENT",
+          "lowBeam": true
+        }
+      ]
+    },
+    {
+      "id": "sim-5",
+      "startMinutesAgo": 62,
+      "kmh": 56,
+      "widthClass": "MEDIUM",
+      "tempC": 6,
+      "segments": [
+        {
+          "fromM": 27578,
+          "toM": 31517,
+          "tempC": 1
+        },
+        {
+          "fromM": 27618,
+          "toM": 31477,
+          "wiperLevel": "INTERMITTENT",
+          "lowBeam": true
+        }
+      ]
+    },
+    {
+      "id": "sim-6",
+      "startMinutesAgo": 65,
+      "kmh": 58,
+      "widthClass": "WIDE",
+      "tempC": 6,
+      "segments": [
+        {
+          "fromM": 27578,
+          "toM": 31517,
+          "tempC": 1
+        },
+        {
+          "fromM": 27618,
+          "toM": 31477,
+          "wiperLevel": "INTERMITTENT",
+          "lowBeam": true
+        }
+      ]
+    },
+    {
+      "id": "sim-7",
+      "startMinutesAgo": 68,
+      "kmh": 60,
+      "widthClass": "MEDIUM",
+      "tempC": 6,
+      "segments": [
+        {
+          "fromM": 27578,
+          "toM": 31517,
+          "tempC": 1
+        },
+        {
+          "fromM": 27618,
+          "toM": 31477,
+          "wiperLevel": "INTERMITTENT",
+          "lowBeam": true
+        }
+      ]
+    },
+    {
+      "id": "sim-8",
+      "startMinutesAgo": 71,
+      "kmh": 62,
+      "widthClass": "MEDIUM",
+      "tempC": 6,
+      "segments": [
+        {
+          "fromM": 27578,
+          "toM": 31517,
+          "tempC": 1
+        }
+      ]
+    },
+    {
+      "id": "sim-9",
+      "startMinutesAgo": 74,
+      "kmh": 56,
+      "widthClass": "NARROW",
+      "tempC": 6,
+      "segments": [
+        {
+          "fromM": 27578,
+          "toM": 31517,
+          "tempC": 1
+        }
+      ]
+    }
+  ]
+}

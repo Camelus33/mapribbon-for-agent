@@ -7,6 +7,7 @@ import kr.tedin.maptalkdrive.ribbon.geo.RouteIndex
 import kr.tedin.maptalkdrive.ribbon.spec.Anchor
 import kr.tedin.maptalkdrive.ribbon.spec.AnchorType
 import kr.tedin.maptalkdrive.ribbon.spec.Knot
+import kr.tedin.maptalkdrive.ribbon.spec.WiperLevel
 
 /** A straight 20 km road heading east along latitude 38.0. */
 object Road {
@@ -36,6 +37,10 @@ data class Drive(
     val wheel: (Double) -> Double? = { null },
     val wiper: (Double) -> Boolean = { false },
     val fog: (Double) -> Boolean = { false },
+    val wiperLevel: (Double) -> WiperLevel? = { null },
+    val lowBeam: (Double) -> Boolean = { false },
+    val rearFog: (Double) -> Boolean = { false },
+    val tempC: (Double) -> Double? = { null },
 )
 
 /** One sample per second. Speed is reported only when `speedAt` gives one; otherwise the detector derives it. */
@@ -53,6 +58,10 @@ fun Drive.samples(): List<Sample> {
             wheelAngleDeg = wheel(along),
             wiper = wiper(along),
             fogLight = fog(along),
+            wiperLevel = wiperLevel(along),
+            lowBeam = lowBeam(along),
+            rearFog = rearFog(along),
+            outsideTempC = tempC(along),
         )
         val v = speedAt(along) ?: kmh
         along += v / 3.6

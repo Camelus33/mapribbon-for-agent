@@ -50,6 +50,10 @@ class Words(private val r: Resources) {
         when (metric) {
             Metric.WIPER_TURNED_ON_RATE, Metric.WIPER_ON_RATE -> R.string.issue_wiper
             Metric.FOG_TURNED_ON_RATE, Metric.FOG_ON_RATE -> R.string.issue_fog
+            Metric.WIPER_FAST_RATE -> R.string.issue_wiper_fast
+            Metric.REAR_FOG_RATE -> R.string.issue_rear_fog
+            Metric.DAY_LOW_BEAM_RATE -> R.string.issue_day_beam
+            Metric.ICE_RISK_RATE -> R.string.issue_ice
             Metric.LATE_LANE_CHANGE_RATE -> R.string.issue_late_merge
             Metric.HARD_BRAKE_RATE -> R.string.issue_hard_brake
             Metric.STOP_RATE -> R.string.issue_stop
@@ -61,19 +65,27 @@ class Words(private val r: Resources) {
     /**
      * What the behaviour may mean for the driver, always said as a possibility. The issue icon and the count of cars
      * next to it are the evidence; this line is the reading of it. Hard braking at a camera is the camera's doing, not
-     * a hold-up.
+     * a hold-up. Rain and fog are graded by the other reasons: fast wipers make it heavy rain, rear fog lights thick fog.
      */
-    fun meaning(item: BriefingItem): String = r.getString(
+    fun meaning(item: BriefingItem): String {
+        val also = item.state.reasons.map { it.metric }.toSet()
+        return r.getString(meaningOf(item, also))
+    }
+
+    private fun meaningOf(item: BriefingItem, also: Set<String>): Int =
         when (top(item)?.metric) {
-            Metric.WIPER_TURNED_ON_RATE, Metric.WIPER_ON_RATE -> R.string.meaning_rain
-            Metric.FOG_TURNED_ON_RATE, Metric.FOG_ON_RATE -> R.string.meaning_fog
+            Metric.WIPER_TURNED_ON_RATE, Metric.WIPER_ON_RATE -> if (Metric.WIPER_FAST_RATE in also) R.string.meaning_heavy_rain else R.string.meaning_rain
+            Metric.WIPER_FAST_RATE -> R.string.meaning_heavy_rain
+            Metric.FOG_TURNED_ON_RATE, Metric.FOG_ON_RATE -> if (Metric.REAR_FOG_RATE in also) R.string.meaning_thick_fog else R.string.meaning_fog
+            Metric.REAR_FOG_RATE -> R.string.meaning_thick_fog
+            Metric.ICE_RISK_RATE -> R.string.meaning_ice
+            Metric.DAY_LOW_BEAM_RATE -> R.string.meaning_dark
             Metric.HARD_BRAKE_RATE -> if (item.anchor.type == AnchorType.CAMERA) R.string.meaning_camera_brake else R.string.meaning_holdup
             Metric.LATE_LANE_CHANGE_RATE -> R.string.meaning_exit_busy
             Metric.STOP_RATE -> R.string.meaning_queue
             Metric.ENTRY_DECEL_KMH, Metric.SPEED_AT_KMH -> R.string.meaning_slow
             else -> R.string.meaning_other
-        },
-    )
+        }
 
     /**
      * This time, in cars: "6/9대", "6 of 9". With eight or nine cars a percentage overstates precision, and a bare
