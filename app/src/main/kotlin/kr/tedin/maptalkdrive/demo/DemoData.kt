@@ -3,6 +3,8 @@ package kr.tedin.maptalkdrive.demo
 import android.content.Context
 import kr.tedin.maptalkdrive.ribbon.agg.Baseline
 import kr.tedin.maptalkdrive.ribbon.demo.Scenario
+import kr.tedin.maptalkdrive.ribbon.geo.CurveStretch
+import kr.tedin.maptalkdrive.ribbon.geo.Curvature
 import kr.tedin.maptalkdrive.ribbon.geo.RouteIndex
 import kr.tedin.maptalkdrive.ribbon.spec.AnchorSet
 import kr.tedin.maptalkdrive.ribbon.spec.RibbonJson
@@ -14,6 +16,9 @@ class DemoData(
     val baseline: Baseline,
     val scenarios: List<Scenario>,
 ) {
+    /** How the route bends, computed once from its own geometry. */
+    val curves: List<CurveStretch> by lazy { Curvature.stretches(route) }
+
     companion object {
         fun load(context: Context): DemoData {
             val a = context.assets

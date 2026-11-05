@@ -2,6 +2,7 @@
   "spec": "maptalk.anchors/1",
   "routeId": "SY60E",
   "routeName": "서울양양고속도로 인제IC → 양양JC",
+  "routeNameEn": "Seoul-Yangyang Expressway: Inje IC → Yangyang JC",
   "lengthM": 34508,
   "attribution": "© OpenStreetMap contributors (ODbL 1.0, https://www.openstreetmap.org/copyright)",
   "anchors": [
@@ -19,7 +20,8 @@
       "source": "osm",
       "sourceRef": "way/504160983",
       "virtual": false,
-      "lengthM": 2274
+      "lengthM": 2274,
+      "nameEn": "Sangnam 7 Tunnel"
     },
     {
       "id": "SY60E-T02",
@@ -35,7 +37,8 @@
       "source": "osm",
       "sourceRef": "way/504160969",
       "virtual": false,
-      "lengthM": 102
+      "lengthM": 102,
+      "nameEn": "Girin 1 Tunnel"
     },
     {
       "id": "SY60E-T03",
@@ -51,7 +54,8 @@
       "source": "osm",
       "sourceRef": "way/504160960",
       "virtual": false,
-      "lengthM": 387
+      "lengthM": 387,
+      "nameEn": "Girin 2 Tunnel"
     },
     {
       "id": "SY60E-T04",
@@ -67,7 +71,8 @@
       "source": "osm",
       "sourceRef": "way/504160936",
       "virtual": false,
-      "lengthM": 147
+      "lengthM": 147,
+      "nameEn": "Girin 3 Tunnel"
     },
     {
       "id": "SY60E-T05",
@@ -83,7 +88,8 @@
       "source": "osm",
       "sourceRef": "way/504160918",
       "virtual": false,
-      "lengthM": 748
+      "lengthM": 748,
+      "nameEn": "Girin 4 Tunnel"
     },
     {
       "id": "SY60E-T06",
@@ -99,7 +105,8 @@
       "source": "osm",
       "sourceRef": "way/504160906",
       "virtual": false,
-      "lengthM": 1136
+      "lengthM": 1136,
+      "nameEn": "Girin 5 Tunnel"
     },
     {
       "id": "SY60E-C01",
@@ -114,7 +121,8 @@
       "lon": 128.364569,
       "source": "virtual",
       "sourceRef": null,
-      "virtual": true
+      "virtual": true,
+      "nameEn": "Virtual speed camera"
     },
     {
       "id": "SY60E-T07",
@@ -130,7 +138,8 @@
       "source": "osm",
       "sourceRef": "way/504160891",
       "virtual": false,
-      "lengthM": 2622
+      "lengthM": 2622,
+      "nameEn": "Girin 6 Tunnel"
     },
     {
       "id": "SY60E-T08",
@@ -146,7 +155,8 @@
       "source": "osm",
       "sourceRef": "way/504160887",
       "virtual": false,
-      "lengthM": 10946
+      "lengthM": 10946,
+      "nameEn": "Inje-Yangyang Tunnel"
     },
     {
       "id": "SY60E-T09",
@@ -162,7 +172,8 @@
       "source": "osm",
       "sourceRef": "way/504160879",
       "virtual": false,
-      "lengthM": 249
+      "lengthM": 249,
+      "nameEn": "Seomyeon 2 Tunnel"
     },
     {
       "id": "SY60E-C02",
@@ -177,7 +188,8 @@
       "lon": 128.529779,
       "source": "virtual",
       "sourceRef": null,
-      "virtual": true
+      "virtual": true,
+      "nameEn": "Virtual speed camera"
     },
     {
       "id": "SY60E-J01",
@@ -192,7 +204,8 @@
       "lon": 128.53061,
       "source": "osm",
       "sourceRef": "node/8649613605",
-      "virtual": false
+      "virtual": false,
+      "nameEn": "W.Yangyang IC"
     },
     {
       "id": "SY60E-T10",
@@ -208,7 +221,8 @@
       "source": "osm",
       "sourceRef": "way/504160863",
       "virtual": false,
-      "lengthM": 193
+      "lengthM": 193,
+      "nameEn": "Seomyeon 3 Tunnel"
     },
     {
       "id": "SY60E-T11",
@@ -224,7 +238,8 @@
       "source": "osm",
       "sourceRef": "way/504160855",
       "virtual": false,
-      "lengthM": 111
+      "lengthM": 111,
+      "nameEn": "Seomyeon 4 Tunnel"
     },
     {
       "id": "SY60E-T12",
@@ -240,7 +255,8 @@
       "source": "osm",
       "sourceRef": "way/504160849",
       "virtual": false,
-      "lengthM": 1303
+      "lengthM": 1303,
+      "nameEn": "Seomyeon 5 Tunnel"
     },
     {
       "id": "SY60E-T13",
@@ -256,7 +272,8 @@
       "source": "osm",
       "sourceRef": "way/504160840",
       "virtual": false,
-      "lengthM": 2937
+      "lengthM": 2937,
+      "nameEn": "Seomyeon 6 Tunnel"
     },
     {
       "id": "SY60E-T14",
@@ -272,7 +289,8 @@
       "source": "osm",
       "sourceRef": "way/504160830",
       "virtual": false,
-      "lengthM": 754
+      "lengthM": 754,
+      "nameEn": "Seomyeon 7 Tunnel"
     },
     {
       "id": "SY60E-J02",
@@ -287,7 +305,8 @@
       "lon": 128.596721,
       "source": "osm",
       "sourceRef": "node/1791264080",
-      "virtual": false
+      "virtual": false,
+      "nameEn": "Yangyang JC"
     }
   ]
 }

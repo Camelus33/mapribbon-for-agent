@@ -14,6 +14,7 @@ import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.StateFlow
+import kr.tedin.maptalkdrive.R
 import kr.tedin.maptalkdrive.port.NaviEvent
 import kr.tedin.maptalkdrive.port.NaviPort
 import kr.tedin.maptalkdrive.port.PortStatus
@@ -26,7 +27,7 @@ class PleosNaviAdapter(context: Context) : NaviPort {
     private val ctx = context.applicationContext
     private val _events = MutableSharedFlow<NaviEvent>(extraBufferCapacity = 8)
     override val events: SharedFlow<NaviEvent> = _events
-    private val _status = MutableStateFlow(PortStatus("Pleos NaviHelper", live = false, note = "시작 전"))
+    private val _status = MutableStateFlow(PortStatus("Pleos NaviHelper", live = false, note = ctx.getString(R.string.port_not_started)))
     override val status: StateFlow<PortStatus> = _status
     private var helper: NaviHelper? = null
     private val main = Handler(Looper.getMainLooper())
@@ -49,7 +50,7 @@ class PleosNaviAdapter(context: Context) : NaviPort {
         }
         // Answer to the probe sent in start(): proof that the navigation service is really there.
         override fun onRouteStateInfo(info: RouteStateInfo) {
-            _status.value = PortStatus("Pleos NaviHelper", live = true, note = "연결됨 · 경로 이벤트 대기")
+            _status.value = PortStatus("Pleos NaviHelper", live = true, note = ctx.getString(R.string.port_navi_connected))
         }
     }
 
@@ -60,8 +61,8 @@ class PleosNaviAdapter(context: Context) : NaviPort {
             Log.w(TAG, "NaviHelper unavailable", e)
             null
         }
-        _status.value = if (helper != null) PortStatus("Pleos NaviHelper", live = false, note = "등록함 · 응답 대기")
-        else PortStatus("Pleos NaviHelper", live = false, note = "내비 서비스 없음")
+        _status.value = if (helper != null) PortStatus("Pleos NaviHelper", live = false, note = ctx.getString(R.string.port_navi_registered))
+        else PortStatus("Pleos NaviHelper", live = false, note = ctx.getString(R.string.port_navi_missing))
         if (helper != null) PROBE_AT_MS.forEach { main.postDelayed(probe, it) }
     }
 

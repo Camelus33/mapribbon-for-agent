@@ -15,6 +15,7 @@ import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.StateFlow
+import kr.tedin.maptalkdrive.R
 import kr.tedin.maptalkdrive.port.Fix
 import kr.tedin.maptalkdrive.port.LocationPort
 import kr.tedin.maptalkdrive.port.PortStatus
@@ -28,13 +29,13 @@ class PleosLocationAdapter(context: Context) : LocationPort {
     private val ctx = context.applicationContext
     private val _fixes = MutableSharedFlow<Fix>(extraBufferCapacity = 64)
     override val fixes: SharedFlow<Fix> = _fixes
-    private val _status = MutableStateFlow(PortStatus("위치", live = false, note = "시작 전"))
+    private val _status = MutableStateFlow(PortStatus(ctx.getString(R.string.port_location_name), live = false, note = ctx.getString(R.string.port_not_started)))
     override val status: StateFlow<PortStatus> = _status
 
     private val main = Handler(Looper.getMainLooper())
     private var fused: FusedLocation? = null
     private var manager: LocationManager? = null
-    @Volatile private var source = "위치"
+    @Volatile private var source = ctx.getString(R.string.port_location_name)
     @Volatile private var gotFix = false
 
     private val fusedListener = object : FusedLocationListener {
@@ -53,7 +54,7 @@ class PleosLocationAdapter(context: Context) : LocationPort {
         if (!gotFix && fused != null) {
             Log.i(TAG, "no fused fix in ${FUSED_GRACE_MS} ms, switching to GPS")
             stopFused()
-            startGps("FusedLocation 응답 없음")
+            startGps(ctx.getString(R.string.port_fused_silent))
         }
     }
 
@@ -68,10 +69,10 @@ class PleosLocationAdapter(context: Context) : LocationPort {
         fused = f
         if (f != null) {
             source = "Pleos FusedLocation"
-            _status.value = PortStatus(source, live = false, note = "등록함 · 위치 대기")
+            _status.value = PortStatus(source, live = false, note = ctx.getString(R.string.port_registered_waiting_fix))
             main.postDelayed(fallBackIfSilent, FUSED_GRACE_MS)
         } else {
-            startGps("FusedLocation 없음")
+            startGps(ctx.getString(R.string.port_fused_missing))
         }
     }
 
@@ -82,17 +83,17 @@ class PleosLocationAdapter(context: Context) : LocationPort {
             m.requestLocationUpdates(LocationManager.GPS_PROVIDER, 1000L, 0f, gpsListener, Looper.getMainLooper())
             manager = m
             source = "Android GPS"
-            _status.value = PortStatus(source, live = false, note = "$why · 위치 대기")
+            _status.value = PortStatus(source, live = false, note = ctx.getString(R.string.port_waiting_fix, why))
         } catch (e: Throwable) {
             Log.w(TAG, "GPS unavailable", e)
-            _status.value = PortStatus("위치", live = false, note = "$why · GPS 권한 또는 장치 없음")
+            _status.value = PortStatus(ctx.getString(R.string.port_location_name), live = false, note = ctx.getString(R.string.port_no_gps, why))
         }
     }
 
     private fun emit(fix: Fix) {
         if (!gotFix) {
             gotFix = true
-            _status.value = PortStatus(source, live = true, note = "위치 수신 중")
+            _status.value = PortStatus(source, live = true, note = ctx.getString(R.string.port_receiving_fixes))
         }
         _fixes.tryEmit(fix)
     }

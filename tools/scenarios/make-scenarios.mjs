@@ -29,6 +29,7 @@ const localWeather = {
   spec: 'maptalk.scenario/1',
   id: 'local-weather',
   title: '인제양양터널 너머 비, 서양양IC 직전 끼어들기',
+  titleEn: 'Rain past the Inje-Yangyang Tunnel, late merges before W.Yangyang IC',
   description: `영서는 맑고 영동은 비. 9대 중 6대가 ${tunnel.name} 출구에서 와이퍼를 켜고 3대는 안개등도 켠다. ` +
     `4대가 ${ic.name} 300m 안에서 방향지시등을 켜고, 3대가 ${camera.name} 앞에서 급제동한다.`,
   vehicles: Array.from({ length: N }, (_, i) => {
@@ -49,6 +50,7 @@ const rainEverywhere = {
   spec: 'maptalk.scenario/1',
   id: 'rain-everywhere',
   title: '대조군: 전 구간 비',
+  titleEn: 'Control: rain along the whole route',
   description: '9대 모두 처음부터 끝까지 와이퍼를 켠다. 도로 전체의 날씨이므로 어느 시설물도 "평소와 다름"이 되면 안 된다.',
   vehicles: Array.from({ length: N }, (_, i) => ({
     id: `sim-${i + 1}`, startMinutesAgo: startMinutesAgo(i), kmh: 88 + (i % 4) * 2, widthClass: widths[i],

@@ -27,6 +27,8 @@ data class Anchor(
     val sourceRef: String? = null,
     val virtual: Boolean = false,
     val lengthM: Int? = null,
+    /** The name in English for screens outside Korea: OSM name:en where it exists, otherwise romanised. */
+    val nameEn: String? = null,
 ) {
     val zoneStartM: Int get() = alongM - zoneBeforeM
     val zoneEndM: Int get() = endAlongM + zoneAfterM
@@ -37,6 +39,7 @@ data class AnchorSet(
     val spec: String,
     val routeId: String,
     val routeName: String,
+    val routeNameEn: String? = null,
     val lengthM: Int,
     val attribution: String,
     val anchors: List<Anchor>,

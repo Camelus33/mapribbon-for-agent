@@ -12,7 +12,7 @@ const ASSETS = join(HERE, '../../app/src/main/assets');
 const CACHE = join(HERE, '.cache');
 
 // Seoul–Yangyang Expressway (ref 60), eastbound from Inje IC to Yangyang JC.
-const ROUTE = { id: 'SY60E', name: '서울양양고속도로 인제IC → 양양JC', dir: 'E', ref: '60' };
+const ROUTE = { id: 'SY60E', name: '서울양양고속도로 인제IC → 양양JC', nameEn: 'Seoul-Yangyang Expressway: Inje IC → Yangyang JC', dir: 'E', ref: '60' };
 const BBOX = '37.88,128.25,38.10,128.65';
 const START = [128.2894, 37.9146]; // 인제IC
 const END = [128.5967, 38.0633];   // 양양JC (ref 60 ends here eastbound)
@@ -66,12 +66,12 @@ async function main() {
     const isTunnel = w.tags.tunnel === 'yes' && name && !name.endsWith('교');
     if (isTunnel && open && open.name === name && Math.abs(open.to - a) < 5) { open.to = b; open.refs.push(`way/${w.id}`); continue; }
     if (open) { flushTunnel(open); open = null; }
-    if (isTunnel) open = { name, from: a, to: b, refs: [`way/${w.id}`] };
+    if (isTunnel) open = { name, nameEn: w.tags['tunnel:name:en'], from: a, to: b, refs: [`way/${w.id}`] };
   }
   if (open) flushTunnel(open);
   function flushTunnel(t) {
     if (t.to < 0 || t.from > lengthM) return;
-    push('TUNNEL', t.name, Math.max(0, t.from), Math.min(lengthM, t.to), 'osm', t.refs.join(','), { lengthM: Math.round(t.to - t.from) });
+    push('TUNNEL', t.name, Math.max(0, t.from), Math.min(lengthM, t.to), 'osm', t.refs.join(','), { lengthM: Math.round(t.to - t.from), nameEn: t.nameEn ?? english(t.name) });
   }
 
   // Junctions that sit on this carriageway. Rest areas are sometimes tagged as junctions; drop them.
@@ -82,7 +82,7 @@ async function main() {
     .sort((a, b) => cum[a.idx] - cum[b.idx]);
   for (const { j, idx } of onRoute) {
     if (anchors.some(a => a.type === 'JUNCTION' && a.name === j.tags.name && Math.abs(a.alongM - cum[idx]) < 1000)) continue;
-    push('JUNCTION', j.tags.name, cum[idx], null, 'osm', `node/${j.id}`);
+    push('JUNCTION', j.tags.name, cum[idx], null, 'osm', `node/${j.id}`, { nameEn: j.tags['name:en'] ?? english(j.tags.name) });
   }
 
   // Toll gates on the main line only (ramp toll gates are not passed by through traffic).
@@ -92,14 +92,14 @@ async function main() {
     const near = nearestOnPath(routePath, cum, ll(t));
     if (near.dist > 80 || tollSeen.some(a => Math.abs(a - near.along) < 300)) continue;
     tollSeen.push(near.along);
-    push('TOLL', name, near.along, null, 'osm', `${t.type}/${t.id}`);
+    push('TOLL', name, near.along, null, 'osm', `${t.type}/${t.id}`, { nameEn: t.tags['name:en'] ?? english(name) });
   }
 
   // Virtual cameras, kept out of tunnels so the demo signal stays readable.
   for (const f of VIRTUAL_CAMERAS_AT) {
     let at = lengthM * f;
     while (anchors.some(a => a.type === 'TUNNEL' && at >= a.alongM - 400 && at <= a.endAlongM + 400)) at += 250;
-    push('CAMERA', '가상 단속카메라', at, null, 'virtual', null, { virtual: true });
+    push('CAMERA', '가상 단속카메라', at, null, 'virtual', null, { virtual: true, nameEn: 'Virtual speed camera' });
   }
 
   anchors.sort((a, b) => a.alongM - b.alongM);
@@ -120,9 +120,9 @@ async function main() {
     geometry: { type: 'LineString', coordinates: routePath.map(([x, y]) => [+x.toFixed(6), +y.toFixed(6)]) },
   }) + '\n');
   await writeFile(join(ASSETS, 'anchors.json'), JSON.stringify({
-    spec: 'maptalk.anchors/1', routeId: ROUTE.id, routeName: ROUTE.name, lengthM: Math.round(lengthM), attribution,
-    anchors: anchors.map(({ id, type, name, dir = ROUTE.dir, alongM, endAlongM, zoneBeforeM, zoneAfterM, lat, lon, source, sourceRef, virtual, lengthM: l }) =>
-      ({ id, type, name, dir, alongM, endAlongM, zoneBeforeM, zoneAfterM, lat, lon, source, sourceRef, virtual, ...(l ? { lengthM: l } : {}) })),
+    spec: 'maptalk.anchors/1', routeId: ROUTE.id, routeName: ROUTE.name, routeNameEn: ROUTE.nameEn, lengthM: Math.round(lengthM), attribution,
+    anchors: anchors.map(({ id, type, name, dir = ROUTE.dir, alongM, endAlongM, zoneBeforeM, zoneAfterM, lat, lon, source, sourceRef, virtual, lengthM: l, nameEn }) =>
+      ({ id, type, name, dir, alongM, endAlongM, zoneBeforeM, zoneAfterM, lat, lon, source, sourceRef, virtual, ...(l ? { lengthM: l } : {}), nameEn })),
   }, null, 2) + '\n');
 
   console.log(`route ${ROUTE.id}: ${(lengthM / 1000).toFixed(1)} km, ${routePath.length} points`);
@@ -159,3 +159,31 @@ function pointAt(path, cum, along) {
 }
 
 main().catch(err => { console.error(err.message); process.exit(1); });
+
+// English names for screens outside Korea. OSM name:en wins; otherwise the Korean name is romanised (Revised
+// Romanisation, syllable by syllable, no sound-change rules) and the facility word translated. A few names have a
+// published English form that romanisation cannot guess; they are listed here.
+const ENGLISH_OVERRIDES = { '인제양양터널': 'Inje-Yangyang Tunnel' };
+const SUFFIXES = [['터널', 'Tunnel'], ['분기점', 'JC'], ['나들목', 'IC'], ['요금소', 'Tollgate'], ['영업소', 'Tollgate'], ['IC', 'IC'], ['JC', 'JC'], ['TG', 'TG']];
+const INITIAL = ['g', 'kk', 'n', 'd', 'tt', 'r', 'm', 'b', 'pp', 's', 'ss', '', 'j', 'jj', 'ch', 'k', 't', 'p', 'h'];
+const MEDIAL = ['a', 'ae', 'ya', 'yae', 'eo', 'e', 'yeo', 'ye', 'o', 'wa', 'wae', 'oe', 'yo', 'u', 'wo', 'we', 'wi', 'yu', 'eu', 'ui', 'i'];
+const FINAL = ['', 'k', 'k', 'k', 'n', 'n', 'n', 't', 'l', 'k', 'm', 'l', 'l', 'l', 'p', 'l', 'm', 'p', 'p', 't', 't', 'ng', 't', 't', 'k', 't', 'p', 't'];
+
+function romanise(text) {
+  let out = '';
+  for (const ch of text) {
+    const code = ch.codePointAt(0) - 0xac00;
+    if (code < 0 || code > 11171) { out += ch; continue; }
+    out += INITIAL[Math.floor(code / 588)] + MEDIAL[Math.floor((code % 588) / 28)] + FINAL[code % 28];
+  }
+  return out.charAt(0).toUpperCase() + out.slice(1);
+}
+
+function english(name) {
+  if (ENGLISH_OVERRIDES[name]) return ENGLISH_OVERRIDES[name];
+  const [ko, en] = SUFFIXES.find(([k]) => name.endsWith(k)) ?? ['', ''];
+  const stem = name.slice(0, name.length - ko.length);
+  const m = stem.match(/^(.*?)(\d+)$/);
+  const words = m ? [romanise(m[1]), m[2]] : [romanise(stem)];
+  return [...words, en].filter(Boolean).join(' ');
+}

@@ -35,6 +35,8 @@ data class Tokens(
     val positionRing: Color,
     val actionBg: Color,
     val actionInk: Color,
+    /** The band under a tunnel stretch: quieter than any road class so the curvature line stays readable through it. */
+    val tunnel: Color,
 ) {
     /** "Somewhat different from usual": circle. */
     val some = Color(0xFFFAB219)
@@ -50,6 +52,7 @@ val DarkTokens = Tokens(
     trackAhead = Color(0xFF4A4945), trackPassed = Color(0xFF2C2C2A), trackToNext = Color(0xFFC3C2B7),
     position = Color(0xFFF0EFEC), positionRing = Color(0xFF1A1A19),
     actionBg = Color(0xFFF0EFEC), actionInk = Color(0xFF1A1A19),
+    tunnel = Color(0xFF2A2A28),
 )
 
 val LightTokens = Tokens(
@@ -59,6 +62,7 @@ val LightTokens = Tokens(
     trackAhead = Color(0xFFB0AEA5), trackPassed = Color(0xFFE1E0D9), trackToNext = Color(0xFF52514E),
     position = Color(0xFF0B0B0B), positionRing = Color(0xFFFCFCFB),
     actionBg = Color(0xFF0B0B0B), actionInk = Color(0xFFFCFCFB),
+    tunnel = Color(0xFFE9E8E2),
 )
 
 val LocalTokens = staticCompositionLocalOf { DarkTokens }

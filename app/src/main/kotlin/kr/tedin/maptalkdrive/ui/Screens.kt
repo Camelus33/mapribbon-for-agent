@@ -15,20 +15,23 @@ import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.layout.widthIn
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.State
 import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -38,163 +41,337 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Rect
+import androidx.compose.ui.geometry.Size
+import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.layout.boundsInParent
 import androidx.compose.ui.layout.onGloballyPositioned
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
+import kotlinx.serialization.json.Json
+import kr.tedin.maptalkdrive.R
+import kr.tedin.maptalkdrive.channel.ChannelState
 import kr.tedin.maptalkdrive.demo.RibbonViewModel
-import kr.tedin.maptalkdrive.demo.UiState
+import kr.tedin.maptalkdrive.port.Gear
 import kr.tedin.maptalkdrive.port.PortStatus
 import kr.tedin.maptalkdrive.port.VehicleSignals
 import kr.tedin.maptalkdrive.ribbon.brief.Briefing
 import kr.tedin.maptalkdrive.ribbon.brief.BriefingItem
 import kr.tedin.maptalkdrive.ribbon.detect.TurnSignal
+import kr.tedin.maptalkdrive.ribbon.geo.CurveClass
 import kr.tedin.maptalkdrive.ribbon.spec.Deviation
+import kr.tedin.maptalkdrive.ribbon.spec.Knot
+import kr.tedin.maptalkdrive.ribbon.spec.RibbonState
 import kr.tedin.maptalkdrive.ribbon.spec.RibbonStatus
 
 private val Gutter = 48.dp
 private val Touch = 76.dp
 
 /**
- * `restricted` comes from CarUxRestrictions: while the car moves only the driving view is shown and nothing can be
- * pressed. The demo drive shows the same view without the restriction so it can be stopped.
+ * Before departure the app shows the route and what the ribbons on it say, and can run the route as a preview. While
+ * the car moves (CarUxRestrictions) it shows only that this car's agent is recording: no map, no position, no
+ * controls. The navigation stays the driver's guide.
  */
 @Composable
 fun AppScreen(vm: RibbonViewModel, restricted: Boolean) {
     val t = LocalTokens.current
-    val ui by vm.ui.collectAsState()
+    val w = rememberWords()
+    val s by vm.channel.state.collectAsState()
+    // The preview position changes every frame; it is passed as State and read only where it is drawn.
+    val preview = vm.preview.collectAsState()
     var sheet by rememberSaveable { mutableStateOf(false) }
+    LaunchedEffect(restricted) { if (restricted) { vm.stopPreview(); sheet = false } }
     Box(Modifier.fillMaxSize().background(t.surface)) {
-        if (restricted || ui.drive != null) {
-            DrivingScreen(vm, ui, restricted, t)
+        if (restricted || s.recording) {
+            RecordingScreen(vm, s, restricted, t, w)
         } else {
-            BriefingScreen(vm, ui, t, onOpenDemo = { sheet = true })
-            if (sheet) DemoSheet(vm, ui, t, onClose = { sheet = false }, Modifier.align(Alignment.CenterEnd))
+            BriefingScreen(vm, s, preview, t, w, onOpenDemo = { sheet = true })
+            if (sheet) DemoSheet(vm, s, t, w, onClose = { sheet = false }, Modifier.align(Alignment.CenterEnd))
         }
     }
 }
 
-// ---------------------------------------------------------------- parked briefing
+// ---------------------------------------------------------------- before departure
 
 @Composable
-private fun BriefingScreen(vm: RibbonViewModel, ui: UiState, t: Tokens, onOpenDemo: () -> Unit) {
+private fun BriefingScreen(vm: RibbonViewModel, s: ChannelState, preview: State<Double?>, t: Tokens, w: Words, onOpenDemo: () -> Unit) {
+    val running by remember { derivedStateOf { preview.value != null } }
     val set = vm.data.anchorSet
-    val b = ui.briefing
-    val (start, end) = set.routeName.substringAfter(' ').split(" → ").let { it.first() to it.last() }
+    val b = s.briefing
+    val (start, end) = w.ends(set)
     Column(Modifier.fillMaxSize().padding(start = Gutter, end = Gutter, top = 32.dp, bottom = 24.dp)) {
         Row(verticalAlignment = Alignment.CenterVertically) {
             Column(Modifier.weight(1f)) {
-                Text("${set.routeName.substringBefore(' ')} · $start → $end · ${Words.at(set.lengthM)} · 시설물 ${set.anchors.size}곳", style = Type.context, color = t.ink2)
+                Text("$start → $end · ${Words.at(set.lengthM)}", style = Type.context, color = t.ink2)
                 val status = when {
-                    ui.replaying -> "가상 차량 통과 중 · ${ui.replayDone}/${ui.replayTotal}"
-                    ui.naviNotice != null -> ui.naviNotice
+                    s.replaying -> w.str(R.string.sim_passing, s.replayDone, s.replayTotal)
+                    s.naviNotice != null -> s.naviNotice
                     else -> null
                 }
                 if (status != null) Text(status, style = Type.caption, color = t.ink2)
             }
-            SimChip(t)
+            SimChip(t, w)
             Spacer(Modifier.width(16.dp))
             OutlinedButton(onClick = onOpenDemo, modifier = Modifier.height(Touch), shape = RoundedCornerShape(12.dp)) {
-                Text("시연", style = Type.button, color = t.ink)
+                Text(w.str(R.string.demo), style = Type.button, color = t.ink)
             }
         }
-        // The road runs from bottom-left (start) to top-right (destination). The two empty triangles it leaves hold
-        // the answer (top-left) and the table (bottom-right); the map keeps its labels out of both.
+        // The road runs from bottom-left (start) to top-right (destination). The two empty corners it leaves hold the
+        // card (top-left) and the list (bottom-right); the map keeps its chips out of both.
         Box(Modifier.weight(1f).fillMaxWidth()) {
-            var headRect by remember { mutableStateOf(Rect.Zero) }
-            var tableRect by remember { mutableStateOf(Rect.Zero) }
-            RouteMap(b, vm.data.route, start, end, t, reserved = listOf(headRect, tableRect).filter { it != Rect.Zero }, modifier = Modifier.fillMaxSize())
-            Column(Modifier.align(Alignment.TopStart).padding(top = 24.dp).onGloballyPositioned { headRect = it.boundsInParent() }) {
-                Headline(b, t)
-                Spacer(Modifier.height(16.dp))
-                Legend(b, t)
+            // The card grows while the preview runs; its reserved area only ever grows within one mode, so the map does
+            // not re-place its chips each time a distance changes width.
+            var cardRect by remember(running) { mutableStateOf(Rect.Zero) }
+            var listRect by remember { mutableStateOf(Rect.Zero) }
+            RouteMap(
+                b, vm.data.route, vm.data.curves, start, end, t,
+                reserved = listOf(cardRect, listRect).filter { it != Rect.Zero },
+                preview = preview, modifier = Modifier.fillMaxSize(),
+            )
+            Column(Modifier.align(Alignment.TopStart).padding(top = 24.dp).onGloballyPositioned { cardRect = grow(cardRect, it.boundsInParent()) }) {
+                if (running) {
+                    PreviewCard(b, preview, w, t)
+                } else {
+                    val top = b.headline
+                    if (top != null) PlaceCard(top, w, t, ahead = null) else Clear(w.str(R.string.nothing_unusual), t)
+                    Spacer(Modifier.height(16.dp))
+                    Counts(b, w, t)
+                }
+                Spacer(Modifier.height(24.dp))
+                Legend(b, vm.data.curves.map { it.curve }.toSet(), w, t)
             }
-            Box(Modifier.align(Alignment.BottomEnd).width(780.dp).onGloballyPositioned { tableRect = it.boundsInParent() }) {
-                ResultTable(b.items.filter { it.different }.sortedWith(compareByDescending<BriefingItem> { it.state.deviation.ordinal }.thenBy { it.pointM }), t)
+            Box(Modifier.align(Alignment.BottomEnd).widthIn(max = 820.dp).onGloballyPositioned { listRect = it.boundsInParent() }) {
+                PlaceList(b.items.filter { it.different }.sortedWith(compareByDescending<BriefingItem> { it.state.deviation.ordinal }.thenBy { it.pointM }), w, t)
             }
         }
         Spacer(Modifier.height(16.dp))
         Row(verticalAlignment = Alignment.CenterVertically) {
-            Text(set.attribution, style = Type.legal, color = t.muted, modifier = Modifier.weight(1f))
-            Button(
-                onClick = { vm.startDemoDrive() },
-                modifier = Modifier.height(Touch),
-                shape = RoundedCornerShape(12.dp),
-                colors = ButtonDefaults.buttonColors(containerColor = t.actionBg, contentColor = t.actionInk),
-            ) { Text("시뮬레이션 주행 시작", style = Type.button, modifier = Modifier.padding(horizontal = 16.dp)) }
-        }
-    }
-}
-
-@Composable
-private fun Headline(b: Briefing, t: Tokens) {
-    val top = b.headline
-    Row(verticalAlignment = Alignment.Top) {
-        if (top != null) {
-            StatusGlyph(top.state.deviation, 40.dp, t, t.surface)
-            Spacer(Modifier.width(16.dp))
-            Column {
-                Text("${Words.place(top)} · ${Words.issue(Words.top(top)?.metric)}", style = Type.headline, color = t.ink)
-                Text(
-                    "${Words.thisTime(top)} (평소 ${Words.usual(top)}) · ${Words.at(top.pointM)} 지점 · 평소와 다른 곳 ${b.differentCount}곳",
-                    style = Type.context, color = t.ink2,
-                )
-            }
-        } else {
-            Column {
-                Text("평소와 다른 곳 없음", style = Type.headline, color = t.ink)
-                Text(
-                    if (b.notEnoughCount > 0) "기록이 부족한 시설물 ${b.notEnoughCount}곳은 판단하지 않았습니다" else "경로 위 시설물 ${b.items.size}곳 모두 평소대로",
-                    style = Type.context, color = t.ink2,
-                )
+            Text(
+                if (running) w.str(R.string.preview_desc) else set.attribution,
+                style = if (running) Type.caption else Type.legal, color = if (running) t.ink2 else t.muted,
+                modifier = Modifier.weight(1f),
+            )
+            if (!running) {
+                Button(
+                    onClick = { vm.startPreview() },
+                    modifier = Modifier.height(Touch),
+                    shape = RoundedCornerShape(12.dp),
+                    colors = ButtonDefaults.buttonColors(containerColor = t.actionBg, contentColor = t.actionInk),
+                ) {
+                    IconBox(24.dp) { c, sz -> playIcon(c, sz, t.actionInk) }
+                    Spacer(Modifier.width(12.dp))
+                    Text(w.str(R.string.preview_run), style = Type.button, modifier = Modifier.padding(end = 8.dp))
+                }
+            } else {
+                OutlinedButton(onClick = { vm.stopPreview() }, modifier = Modifier.height(Touch), shape = RoundedCornerShape(12.dp)) {
+                    IconBox(24.dp) { c, sz -> stopIcon(c, sz, t.ink) }
+                    Spacer(Modifier.width(12.dp))
+                    Text(w.str(R.string.preview_stop), style = Type.button, color = t.ink)
+                }
             }
         }
     }
 }
 
-/** Only the states on screen, each with the mark the strip uses. */
+/** Grows `old` to hold `new`; an empty rect takes `new` as is. */
+private fun grow(old: Rect, new: Rect): Rect =
+    if (old == Rect.Zero) new else Rect(minOf(old.left, new.left), minOf(old.top, new.top), maxOf(old.right, new.right), maxOf(old.bottom, new.bottom))
+
+/** The preview card: the next different place ahead of the preview dot, with its distance. Only this recomposes per frame. */
 @Composable
-private fun Legend(b: Briefing, t: Tokens) {
-    val kinds = buildList {
-        if (b.items.any { it.different && it.state.deviation == Deviation.HIGH }) add(LegendKind.HIGH to "평소와 크게 다름")
-        if (b.items.any { it.different && it.state.deviation == Deviation.SOME }) add(LegendKind.SOME to "평소와 조금 다름")
-        if (b.items.any { it.state.status == RibbonStatus.PUBLISHED && !it.different }) add(LegendKind.USUAL to "평소대로")
-        if (b.notEnoughCount > 0) add(LegendKind.NOT_ENOUGH to "기록 부족")
+private fun PreviewCard(b: Briefing, preview: State<Double?>, w: Words, t: Tokens) {
+    // Recomposes only when the place ahead or its rounded distance changes, not on every frame of the run.
+    val view by remember(b, w) {
+        derivedStateOf { preview.value?.let { along -> b.nextDifferentAhead(along)?.let { (item, d) -> item to w.ahead(d) } } }
     }
-    Row(horizontalArrangement = Arrangement.spacedBy(32.dp), verticalAlignment = Alignment.CenterVertically) {
-        for ((k, label) in kinds) {
+    Crossfade(targetState = view?.first, animationSpec = tween(150), label = "next") { item ->
+        val ahead = view?.takeIf { it.first == item }?.second
+        if (item != null) PlaceCard(item, w, t, ahead = ahead ?: w.ahead(0.0)) else Clear(w.str(R.string.nothing_ahead), t)
+    }
+}
+
+/**
+ * One place, said with icons: status shape, facility, what was different; then the count of cars against the usual
+ * share as a bullet bar. In the preview the distance ahead leads.
+ */
+@Composable
+private fun PlaceCard(item: BriefingItem, w: Words, t: Tokens, ahead: Pair<String, String>?) {
+    val metric = Words.top(item)?.metric
+    Row(
+        verticalAlignment = Alignment.Top,
+        modifier = Modifier.semantics { contentDescription = "${w.place(item)}, ${w.issue(metric)}, ${w.level(item.state.deviation)}" },
+    ) {
+        Row(horizontalArrangement = Arrangement.spacedBy(12.dp), verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(top = 4.dp)) {
+            StatusGlyph(item.state.deviation, 52.dp, t, t.surface)
+            FacilityIcon(item.anchor.type, 52.dp, t.ink)
+            IssueIcon(metric, 52.dp, t.ink)
+        }
+        Spacer(Modifier.width(24.dp))
+        Column {
+            if (ahead != null) {
+                val (num, unit) = ahead
+                Row {
+                    Text(num, style = Type.driveDistance.copy(fontSize = 88.sp, lineHeight = 92.sp, fontFeatureSettings = "tnum"), color = t.ink, modifier = Modifier.alignByBaseline())
+                    Spacer(Modifier.width(12.dp))
+                    Text(unit, style = Type.driveUnit, color = t.ink2, modifier = Modifier.alignByBaseline())
+                }
+            }
+            Text(w.place(item), style = Type.headline, color = t.ink, maxLines = 1, overflow = TextOverflow.Ellipsis)
+            Spacer(Modifier.height(8.dp))
             Row(verticalAlignment = Alignment.CenterVertically) {
-                LegendSwatch(k, t)
-                Spacer(Modifier.width(8.dp))
-                Text(label, style = Type.caption, color = t.ink2)
+                Text(Words.count(item), style = Type.headline.copy(fontFeatureSettings = "tnum"), color = t.ink)
+                Spacer(Modifier.width(16.dp))
+                BulletBar(item, 200.dp, t)
+                Spacer(Modifier.width(12.dp))
+                UsualTick(t)
+                Spacer(Modifier.width(6.dp))
+                Text(Words.usual(item), style = Type.context.copy(fontFeatureSettings = "tnum"), color = t.ink2)
+            }
+            Spacer(Modifier.height(8.dp))
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                if (ahead == null) {
+                    Text(Words.at(item.pointM), style = Type.context.copy(fontFeatureSettings = "tnum"), color = t.ink2)
+                    Spacer(Modifier.width(20.dp))
+                }
+                item.state.window?.let { win ->
+                    IconBox(24.dp) { c, sz -> clockIcon(c, sz, t.ink2) }
+                    Spacer(Modifier.width(8.dp))
+                    Text(w.minutes(win.minutes), style = Type.context, color = t.ink2)
+                }
             }
         }
-        Text("굵은 구간 터널", style = Type.caption, color = t.muted)
     }
 }
 
-/** The table view of the different facilities: every number on the strip is readable here without colour. */
 @Composable
-private fun ResultTable(rows: List<BriefingItem>, t: Tokens) {
-    if (rows.isEmpty()) return
-    val cols = listOf(0.34f, 0.26f, 0.16f, 0.1f, 0.14f)
-    Column(Modifier.fillMaxWidth()) {
-        Row(Modifier.fillMaxWidth().padding(start = 56.dp, bottom = 8.dp)) {
-            listOf("시설물", "무엇이", "이번", "평소", "위치").forEachIndexed { i, h ->
-                Text(h, style = Type.caption, color = t.muted, modifier = Modifier.weight(cols[i]), textAlign = if (i == 4) TextAlign.End else TextAlign.Start)
-            }
+private fun Clear(text: String, t: Tokens) {
+    Row(verticalAlignment = Alignment.CenterVertically) {
+        Canvas(Modifier.size(52.dp)) {
+            val sw = 6.dp.toPx()
+            drawLine(t.ink2, Offset(size.width * 0.15f, size.height * 0.55f), Offset(size.width * 0.42f, size.height * 0.8f), sw)
+            drawLine(t.ink2, Offset(size.width * 0.42f, size.height * 0.8f), Offset(size.width * 0.88f, size.height * 0.22f), sw)
         }
+        Spacer(Modifier.width(20.dp))
+        Text(text, style = Type.headline, color = t.ink2)
+    }
+}
+
+/** How many places are different, by level, as marks with numbers. */
+@Composable
+private fun Counts(b: Briefing, w: Words, t: Tokens) {
+    val high = b.items.count { it.different && it.state.deviation == Deviation.HIGH }
+    val some = b.items.count { it.different && it.state.deviation == Deviation.SOME }
+    Row(horizontalArrangement = Arrangement.spacedBy(24.dp), verticalAlignment = Alignment.CenterVertically) {
+        if (high > 0) CountMark(high, t) { StatusGlyph(Deviation.HIGH, 32.dp, t, t.surface) }
+        if (some > 0) CountMark(some, t) { StatusGlyph(Deviation.SOME, 32.dp, t, t.surface) }
+        if (b.notEnoughCount > 0) Text(w.str(R.string.not_judged, b.notEnoughCount), style = Type.caption, color = t.ink2)
+    }
+}
+
+@Composable
+private fun CountMark(n: Int, t: Tokens, mark: @Composable () -> Unit) {
+    Row(verticalAlignment = Alignment.CenterVertically) {
+        mark()
+        Spacer(Modifier.width(8.dp))
+        Text("$n", style = Type.title.copy(fontFeatureSettings = "tnum"), color = t.ink)
+    }
+}
+
+/** This time as a filled bar (in the status colour), the usual share as a tick across it. */
+@Composable
+private fun BulletBar(item: BriefingItem, width: Dp, t: Tokens) {
+    val (now, usual) = Words.shares(item) ?: return
+    val fill = if (item.state.deviation == Deviation.HIGH) t.high else if (item.state.deviation == Deviation.SOME) t.some else t.muted
+    Canvas(Modifier.size(width = width, height = 24.dp)) {
+        val track = 12.dp.toPx()
+        val y = (size.height - track) / 2
+        drawRoundRect(t.grid, Offset(0f, y), Size(size.width, track), androidx.compose.ui.geometry.CornerRadius(track / 2))
+        if (now > 0f) drawRoundRect(fill, Offset(0f, y), Size(maxOf(track, size.width * now), track), androidx.compose.ui.geometry.CornerRadius(track / 2))
+        if (usual != null) {
+            val x = (size.width * usual).coerceIn(1.dp.toPx(), size.width - 1.dp.toPx())
+            drawLine(t.surface, Offset(x, 0f), Offset(x, size.height), 5.dp.toPx())
+            drawLine(t.ink, Offset(x, 0f), Offset(x, size.height), 2.dp.toPx())
+        }
+    }
+}
+
+@Composable
+private fun UsualTick(t: Tokens) = Canvas(Modifier.size(width = 6.dp, height = 24.dp)) {
+    drawLine(t.ink, Offset(size.width / 2, 0f), Offset(size.width / 2, size.height), 2.dp.toPx())
+}
+
+/**
+ * The legend: how the road is drawn and what the marks mean. Only kinds on screen are listed. This is the one place
+ * that spells out the icons.
+ */
+@Composable
+private fun Legend(b: Briefing, curves: Set<CurveClass>, w: Words, t: Tokens) {
+    val road = buildList {
+        add(LegendKind.STRAIGHT to w.str(R.string.legend_straight))
+        if (CurveClass.CURVE in curves) add(LegendKind.CURVE to w.str(R.string.legend_curve))
+        if (CurveClass.SHARP in curves) add(LegendKind.SHARP to w.str(R.string.legend_sharp))
+        add(LegendKind.TUNNEL to w.str(R.string.legend_tunnel))
+    }
+    val marks = buildList {
+        if (b.items.any { it.different && it.state.deviation == Deviation.HIGH }) add(LegendKind.HIGH to w.str(R.string.legend_high))
+        if (b.items.any { it.different && it.state.deviation == Deviation.SOME }) add(LegendKind.SOME to w.str(R.string.legend_some))
+        if (b.items.any { it.state.status == RibbonStatus.PUBLISHED && !it.different }) add(LegendKind.USUAL to w.str(R.string.legend_usual))
+        if (b.notEnoughCount > 0) add(LegendKind.NOT_ENOUGH to w.str(R.string.legend_not_enough))
+    }
+    val issues = b.items.filter { it.different }.mapNotNull { Words.top(it)?.metric }.distinct()
+    Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+        LegendRow(t) { for ((k, label) in road) LegendEntry(label, t) { LegendSwatch(k, t) } }
+        if (marks.isNotEmpty()) LegendRow(t) { for ((k, label) in marks) LegendEntry(label, t) { LegendSwatch(k, t) } }
+        if (issues.isNotEmpty()) LegendRow(t) {
+            for (m in issues) LegendEntry(w.issue(m), t) { IssueIcon(m, 28.dp, t.ink2) }
+            LegendEntry(w.str(R.string.legend_usual_tick), t) { UsualTick(t) }
+        }
+    }
+}
+
+@Composable
+private fun LegendRow(t: Tokens, content: @Composable () -> Unit) =
+    Row(horizontalArrangement = Arrangement.spacedBy(24.dp), verticalAlignment = Alignment.CenterVertically) { content() }
+
+@Composable
+private fun LegendEntry(label: String, t: Tokens, swatch: @Composable () -> Unit) {
+    Row(verticalAlignment = Alignment.CenterVertically) {
+        swatch()
+        Spacer(Modifier.width(8.dp))
+        Text(label, style = Type.caption, color = t.ink2)
+    }
+}
+
+/** Every different place as a row of icons and numbers: the table view of the map, readable without colour. */
+@Composable
+private fun PlaceList(rows: List<BriefingItem>, w: Words, t: Tokens) {
+    if (rows.isEmpty()) return
+    Column {
         for (item in rows) {
             Box(Modifier.fillMaxWidth().height(1.dp).background(t.grid))
-            Row(Modifier.fillMaxWidth().height(56.dp), verticalAlignment = Alignment.CenterVertically) {
-                Box(Modifier.width(56.dp), contentAlignment = Alignment.CenterStart) { StatusGlyph(item.state.deviation, 28.dp, t, t.surface) }
-                Text(Words.place(item), style = Type.body, color = t.ink, modifier = Modifier.weight(cols[0]), maxLines = 1, overflow = TextOverflow.Ellipsis)
-                Text(Words.issue(Words.top(item)?.metric), style = Type.body, color = t.ink2, modifier = Modifier.weight(cols[1]), maxLines = 1)
-                Text(Words.thisTime(item), style = Type.bodyNum, color = t.ink, modifier = Modifier.weight(cols[2]))
-                Text(Words.usual(item), style = Type.bodyNum, color = t.ink2, modifier = Modifier.weight(cols[3]))
-                Text(Words.at(item.pointM), style = Type.bodyNum, color = t.ink2, modifier = Modifier.weight(cols[4]), textAlign = TextAlign.End)
+            Row(
+                Modifier.height(60.dp).semantics { contentDescription = "${w.place(item)}, ${w.issue(Words.top(item)?.metric)}, ${w.level(item.state.deviation)}" },
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                StatusGlyph(item.state.deviation, 28.dp, t, t.surface)
+                Spacer(Modifier.width(12.dp))
+                FacilityIcon(item.anchor.type, 30.dp, t.ink2)
+                Spacer(Modifier.width(8.dp))
+                IssueIcon(Words.top(item)?.metric, 30.dp, t.ink)
+                Spacer(Modifier.width(16.dp))
+                Text(w.place(item), style = Type.body, color = t.ink, modifier = Modifier.width(260.dp), maxLines = 1, overflow = TextOverflow.Ellipsis)
+                Text(Words.count(item), style = Type.bodyNum, color = t.ink, modifier = Modifier.width(72.dp), textAlign = TextAlign.End)
+                Spacer(Modifier.width(16.dp))
+                BulletBar(item, 120.dp, t)
+                Spacer(Modifier.width(8.dp))
+                Text(Words.usual(item), style = Type.bodyNum, color = t.ink2, modifier = Modifier.width(56.dp))
+                Text(Words.at(item.pointM), style = Type.bodyNum, color = t.ink2, modifier = Modifier.width(96.dp), textAlign = TextAlign.End)
             }
         }
         Box(Modifier.fillMaxWidth().height(1.dp).background(t.grid))
@@ -202,190 +379,160 @@ private fun ResultTable(rows: List<BriefingItem>, t: Tokens) {
 }
 
 @Composable
-private fun SimChip(t: Tokens) {
+private fun SimChip(t: Tokens, w: Words) {
     Row(
         Modifier.border(1.dp, t.ink2.copy(alpha = 0.4f), RoundedCornerShape(50)).padding(horizontal = 16.dp, vertical = 8.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Canvas(Modifier.size(12.dp)) {
-            drawCircle(t.ink2, size.minDimension / 2, style = androidx.compose.ui.graphics.drawscope.Stroke(2.dp.toPx()))
+            drawCircle(t.ink2, size.minDimension / 2, style = Stroke(2.dp.toPx()))
             drawCircle(t.ink2, size.minDimension / 6)
         }
         Spacer(Modifier.width(8.dp))
-        Text("시뮬레이션 데이터", style = Type.caption, color = t.ink2)
+        Text(w.str(R.string.sim_data), style = Type.caption, color = t.ink2)
     }
 }
 
-// ---------------------------------------------------------------- driving
+// ---------------------------------------------------------------- while driving
 
+/**
+ * While the car moves the screen only says that this car's agent is leaving knots for the cars behind. No map and no
+ * position: the navigation guides, this app records.
+ */
 @Composable
-private fun DrivingScreen(vm: RibbonViewModel, ui: UiState, restricted: Boolean, t: Tokens) {
-    val along = ui.drive?.alongM ?: 0.0
-    val next = ui.briefing.nextDifferentAhead(along)
-    Column(Modifier.fillMaxSize().padding(start = Gutter, end = Gutter, top = 48.dp, bottom = 24.dp)) {
-        // Same diagonal as the briefing: the hero sits in the empty top-left, the road crosses to the top-right.
-        Box(Modifier.weight(1f).fillMaxWidth()) {
-            DrivingMap(ui.briefing, vm.data.route, along, t, Modifier.fillMaxSize())
-            // The outgoing side of the crossfade still composes after `next` has moved on (or become null), so each
-            // side computes its own distance from the item it shows.
-            Crossfade(targetState = next?.first, animationSpec = tween(150), label = "next", modifier = Modifier.align(Alignment.TopStart)) { item ->
-                if (item != null) DriveHero(item, (item.pointM - along).coerceAtLeast(0.0), t) else DriveClear(t)
+private fun RecordingScreen(vm: RibbonViewModel, s: ChannelState, restricted: Boolean, t: Tokens, w: Words) {
+    Column(Modifier.fillMaxSize().padding(Gutter), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.Center) {
+        Canvas(Modifier.size(160.dp)) {
+            val c = Offset(size.width / 2, size.height / 2)
+            val r = size.minDimension / 2
+            // Still on purpose: nothing on this screen moves while the car does.
+            drawCircle(t.ink2, r * 0.62f, c, style = Stroke(3.dp.toPx()))
+            drawCircle(t.ink, r * 0.3f, c)
+        }
+        Spacer(Modifier.height(32.dp))
+        Text(w.str(R.string.recording), style = Type.headline, color = t.ink)
+        Spacer(Modifier.height(8.dp))
+        Text(w.str(R.string.recording_count, s.myKnots), style = Type.context.copy(fontFeatureSettings = "tnum"), color = t.ink2)
+        Spacer(Modifier.height(24.dp))
+        Text(w.str(R.string.recording_hint), style = Type.caption, color = t.muted, textAlign = TextAlign.Center, modifier = Modifier.widthIn(max = 720.dp))
+        if (!restricted) {
+            Spacer(Modifier.height(40.dp))
+            OutlinedButton(onClick = { vm.channel.stopRecording() }, modifier = Modifier.height(Touch), shape = RoundedCornerShape(12.dp)) {
+                IconBox(24.dp) { c, sz -> stopIcon(c, sz, t.ink) }
+                Spacer(Modifier.width(12.dp))
+                Text(w.str(R.string.preview_stop), style = Type.button, color = t.ink)
             }
         }
-        Row(verticalAlignment = Alignment.CenterVertically) {
-            Text(
-                "${if (ui.drive?.simulated == true) "시뮬레이션 주행" else "주행 중"} · ${Words.at(along)} 지점",
-                style = Type.caption, color = t.ink2, modifier = Modifier.weight(1f),
-            )
-            if (ui.drive?.simulated == true) SimChip(t)
-            if (!restricted) {
-                Spacer(Modifier.width(16.dp))
-                OutlinedButton(onClick = { vm.stopDrive() }, modifier = Modifier.height(Touch), shape = RoundedCornerShape(12.dp)) {
-                    Text("주행 끝", style = Type.button, color = t.ink)
-                }
-            }
-        }
-    }
-}
-
-@Composable
-private fun DriveHero(item: BriefingItem, distanceM: Double, t: Tokens) {
-    val (num, unit) = Words.ahead(distanceM)
-    Row(verticalAlignment = Alignment.CenterVertically) {
-        HeroMark(item, 136.dp, t)
-        Spacer(Modifier.width(40.dp))
-        Column {
-            Row {
-                // Tabular digits keep the width steady while the number counts down, so "km 앞" does not jitter.
-                Text(num, style = Type.driveDistance.copy(fontFeatureSettings = "tnum"), color = t.ink, modifier = Modifier.alignByBaseline())
-                Spacer(Modifier.width(16.dp))
-                Text(unit, style = Type.driveUnit, color = t.ink2, modifier = Modifier.alignByBaseline())
-            }
-            Text(Words.issue(Words.top(item)?.metric), style = Type.driveIssue, color = t.ink)
-            Text("${Words.place(item)} · ${Words.level(item.state.deviation)}", style = Type.driveMeta, color = t.ink2)
-        }
-    }
-}
-
-/** The status shape at hero size with the facility's pictogram inside. */
-@Composable
-private fun HeroMark(item: BriefingItem, size: Dp, t: Tokens) {
-    Canvas(Modifier.size(size)) {
-        val c = Offset(this.size.width / 2, this.size.height / 2)
-        val s = this.size.minDimension
-        if (item.state.deviation == Deviation.HIGH) {
-            val tc = Offset(c.x, c.y + s * 0.06f)
-            // At hero size the pictogram says what the facility is; the triangle itself already says "clearly different".
-            statusMark(tc, Deviation.HIGH, s, t, 0f, t.surface, exclaim = false)
-            pictogram(item.anchor.type, Offset(tc.x, tc.y + s * 0.1f), s * 0.44f, t.onStatus)
-        } else {
-            drawCircle(t.some, s * 0.44f, c)
-            pictogram(item.anchor.type, c, s * 0.46f, t.onStatus)
-        }
-    }
-}
-
-@Composable
-private fun DriveClear(t: Tokens) {
-    Row(Modifier.heightIn(min = 200.dp), verticalAlignment = Alignment.CenterVertically) {
-        Canvas(Modifier.size(56.dp)) {
-            val w = 6.dp.toPx()
-            drawLine(t.ink2, Offset(size.width * 0.15f, size.height * 0.55f), Offset(size.width * 0.42f, size.height * 0.8f), w)
-            drawLine(t.ink2, Offset(size.width * 0.42f, size.height * 0.8f), Offset(size.width * 0.88f, size.height * 0.22f), w)
-        }
-        Spacer(Modifier.width(24.dp))
-        Text("남은 경로에 평소와 다른 곳 없음", style = Type.headline, color = t.ink2)
     }
 }
 
 // ---------------------------------------------------------------- demo sheet
 
+private val PrettyJson = Json { prettyPrint = true; encodeDefaults = true; explicitNulls = false }
+
 @Composable
-private fun DemoSheet(vm: RibbonViewModel, ui: UiState, t: Tokens, onClose: () -> Unit, modifier: Modifier) {
-    val signals by vm.vehicle.signals.collectAsState()
-    val vStatus by vm.vehicle.status.collectAsState()
-    val lStatus by vm.location.status.collectAsState()
-    val nStatus by vm.navi.status.collectAsState()
+private fun DemoSheet(vm: RibbonViewModel, s: ChannelState, t: Tokens, w: Words, onClose: () -> Unit, modifier: Modifier) {
+    val ch = vm.channel
+    val signals by ch.vehicle.signals.collectAsState()
+    val vStatus by ch.vehicle.status.collectAsState()
+    val lStatus by ch.location.status.collectAsState()
+    val nStatus by ch.navi.status.collectAsState()
     var details by remember { mutableStateOf(false) }
-    Row(modifier.fillMaxHeight().width(480.dp)) {
+    Row(modifier.fillMaxHeight().width(520.dp)) {
         Box(Modifier.fillMaxHeight().width(1.dp).background(t.hairline))
         Column(Modifier.fillMaxSize().background(t.page).padding(start = 32.dp, end = 32.dp, top = 32.dp, bottom = 24.dp), verticalArrangement = Arrangement.spacedBy(16.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
-                Text("시연", style = Type.title, color = t.ink, modifier = Modifier.weight(1f))
-                OutlinedButton(onClick = onClose, modifier = Modifier.height(Touch), shape = RoundedCornerShape(12.dp)) { Text("닫기", style = Type.button, color = t.ink) }
+                Text(w.str(R.string.demo), style = Type.title, color = t.ink, modifier = Modifier.weight(1f))
+                OutlinedButton(onClick = onClose, modifier = Modifier.height(Touch), shape = RoundedCornerShape(12.dp)) { Text(w.str(R.string.close), style = Type.button, color = t.ink) }
             }
-            Text("가상 차량을 이 구간에 지나가게 합니다", style = Type.caption, color = t.ink2)
+            Text(w.str(R.string.demo_hint), style = Type.caption, color = t.ink2)
             Column {
-                for (s in vm.data.scenarios) {
-                    val selected = ui.scenarioId == s.id
+                for (sc in vm.data.scenarios) {
+                    val selected = s.scenarioId == sc.id
                     Box(Modifier.fillMaxWidth().height(1.dp).background(t.grid))
                     Row(
-                        Modifier.fillMaxWidth().height(Touch).clickable(enabled = !ui.replaying) { vm.runScenario(s.id); onClose() },
+                        Modifier.fillMaxWidth().height(Touch).clickable(enabled = !s.replaying) { ch.runScenario(sc.id); onClose() },
                         verticalAlignment = Alignment.CenterVertically,
                     ) {
                         Box(Modifier.width(4.dp).fillMaxHeight().padding(vertical = 12.dp).background(if (selected) t.ink else t.page))
                         Spacer(Modifier.width(16.dp))
                         Column(Modifier.weight(1f)) {
-                            Text(s.title, style = Type.caption, color = t.ink, maxLines = 1, overflow = TextOverflow.Ellipsis)
-                            Text("가상 차량 ${s.vehicles.size}대", style = Type.caption, color = t.muted)
+                            Text(ch.scenarioTitle(sc.id), style = Type.caption, color = t.ink, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                            Text(w.str(R.string.sim_cars, sc.vehicles.size), style = Type.caption, color = t.muted)
                         }
                     }
                 }
                 Box(Modifier.fillMaxWidth().height(1.dp).background(t.grid))
             }
-            if (ui.replaying) {
-                Text("가상 차량 통과 중 · ${ui.replayDone}/${ui.replayTotal}", style = Type.caption, color = t.ink2)
-                LinearProgressIndicator(progress = { ui.replayDone / ui.replayTotal.coerceAtLeast(1).toFloat() }, modifier = Modifier.fillMaxWidth(), color = t.ink, trackColor = t.grid)
+            if (s.replaying) {
+                Text(w.str(R.string.sim_passing, s.replayDone, s.replayTotal), style = Type.caption, color = t.ink2)
+                LinearProgressIndicator(progress = { s.replayDone / s.replayTotal.coerceAtLeast(1).toFloat() }, modifier = Modifier.fillMaxWidth(), color = t.ink, trackColor = t.grid)
             } else {
-                Text(if (ui.knotCount > 0) "기록 ${ui.knotCount}건" else "기록 없음", style = Type.caption, color = t.ink2)
+                Text(if (s.knotCount > 0) w.str(R.string.knots, s.knotCount) else w.str(R.string.no_knots), style = Type.caption, color = t.ink2)
             }
             Row(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
-                OutlinedButton(onClick = { vm.clear() }, modifier = Modifier.height(Touch), shape = RoundedCornerShape(12.dp)) { Text("비우기", style = Type.button, color = t.ink) }
-                OutlinedButton(onClick = { vm.startLiveDrive(); onClose() }, modifier = Modifier.height(Touch), shape = RoundedCornerShape(12.dp)) { Text("실차 신호로 기록", style = Type.button, color = t.ink) }
+                OutlinedButton(onClick = { ch.clear() }, modifier = Modifier.height(Touch), shape = RoundedCornerShape(12.dp)) { Text(w.str(R.string.clear), style = Type.button, color = t.ink) }
+                OutlinedButton(onClick = { ch.startRecording(); onClose() }, modifier = Modifier.height(Touch), shape = RoundedCornerShape(12.dp)) { Text(w.str(R.string.record_live), style = Type.button, color = t.ink) }
             }
-            Text(if (details) "자세히 닫기" else "자세히", style = Type.caption, color = t.ink2, modifier = Modifier.clickable { details = !details }.padding(vertical = 8.dp))
+            Text(if (details) w.str(R.string.details_hide) else w.str(R.string.details), style = Type.caption, color = t.ink2, modifier = Modifier.clickable { details = !details }.padding(vertical = 8.dp))
             if (details) {
-                LazyColumn(Modifier.weight(1f).fillMaxWidth()) { items(ui.log) { Text(it, style = Type.caption, color = t.muted) } }
+                Column(Modifier.weight(1f).fillMaxWidth().verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    AgentIo(s.lastKnot, s.briefing.headline?.state, t, w)
+                    Spacer(Modifier.height(8.dp))
+                    for (line in s.log) Text(line, style = Type.caption, color = t.muted)
+                }
             } else {
                 Spacer(Modifier.weight(1f))
             }
-            Text("차량 연결", style = Type.title, color = t.ink)
-            PortRow("차량 신호", vStatus, t)
-            PortRow("위치", lStatus, t)
-            PortRow("내비", nStatus, t)
-            SignalGrid(signals, t)
+            Text(w.str(R.string.connection), style = Type.title, color = t.ink)
+            PortRow(w.str(R.string.port_vehicle), vStatus, t)
+            PortRow(w.str(R.string.port_location), lStatus, t)
+            PortRow(w.str(R.string.port_navi), nStatus, t)
+            SignalGrid(signals, t, w)
         }
     }
+}
+
+/** The agent layer made visible for the demo: the last knot written and the ribbon an agent reads, as the JSON itself. */
+@Composable
+private fun AgentIo(knot: Knot?, ribbon: RibbonState?, t: Tokens, w: Words) {
+    val mono = TextStyle(fontFamily = FontFamily.Monospace, fontSize = 15.sp, lineHeight = 20.sp)
+    Text(w.str(R.string.agent_io), style = Type.title, color = t.ink)
+    Text(w.str(R.string.agent_endpoint), style = Type.caption, color = t.ink2)
+    Text(w.str(R.string.agent_written), style = Type.caption, color = t.ink2)
+    Text(knot?.let { PrettyJson.encodeToString(Knot.serializer(), it) } ?: w.str(R.string.agent_none), style = mono, color = t.ink,
+        modifier = Modifier.fillMaxWidth().background(t.surface).padding(12.dp))
+    Text(w.str(R.string.agent_read), style = Type.caption, color = t.ink2)
+    Text(ribbon?.let { PrettyJson.encodeToString(RibbonState.serializer(), it) } ?: w.str(R.string.agent_none), style = mono, color = t.ink,
+        modifier = Modifier.fillMaxWidth().background(t.surface).padding(12.dp))
 }
 
 @Composable
 private fun PortRow(name: String, s: PortStatus, t: Tokens) {
     Row(verticalAlignment = Alignment.CenterVertically) {
         Text(if (s.live) "✓" else "–", style = Type.caption, color = if (s.live) t.good else t.muted, modifier = Modifier.width(28.dp))
-        Text(name, style = Type.caption, color = t.ink, modifier = Modifier.width(96.dp))
+        Text(name, style = Type.caption, color = t.ink, modifier = Modifier.width(140.dp))
         Text(s.note ?: s.source, style = Type.caption, color = t.ink2, maxLines = 1, overflow = TextOverflow.Ellipsis)
     }
 }
 
 @Composable
-private fun SignalGrid(s: VehicleSignals, t: Tokens) {
-    val turn = when (s.turnSignal) { TurnSignal.LEFT -> "왼쪽"; TurnSignal.RIGHT -> "오른쪽"; TurnSignal.OFF -> "꺼짐" }
-    val gear = when (s.gear) {
-        kr.tedin.maptalkdrive.port.Gear.PARK -> "P"; kr.tedin.maptalkdrive.port.Gear.DRIVE -> "D"
-        kr.tedin.maptalkdrive.port.Gear.REVERSE -> "R"; kr.tedin.maptalkdrive.port.Gear.NEUTRAL -> "N"; else -> "—"
-    }
+private fun SignalGrid(s: VehicleSignals, t: Tokens, w: Words) {
+    val on = w.str(R.string.on); val off = w.str(R.string.off)
+    val turn = when (s.turnSignal) { TurnSignal.LEFT -> w.str(R.string.left); TurnSignal.RIGHT -> w.str(R.string.right); TurnSignal.OFF -> off }
+    val gear = when (s.gear) { Gear.PARK -> "P"; Gear.DRIVE -> "D"; Gear.REVERSE -> "R"; Gear.NEUTRAL -> "N"; else -> "—" }
     val rows = listOf(
-        "기어" to gear, "속도" to (s.speedKmh?.let { "%.0f km/h".format(it) } ?: "—"),
-        "브레이크" to if (s.brake) "밟음" else "꺼짐", "방향지시등" to turn,
-        "앞바퀴 각도" to Words.degrees(s.wheelAngleDeg), "와이퍼" to if (s.wiper) "작동" else "꺼짐",
-        "안개등" to if (s.fogLight) "켜짐" else "꺼짐",
+        w.str(R.string.sig_gear) to gear, w.str(R.string.sig_speed) to (s.speedKmh?.let { "%.0f km/h".format(it) } ?: "—"),
+        w.str(R.string.sig_brake) to if (s.brake) w.str(R.string.pressed) else off, w.str(R.string.sig_turn) to turn,
+        w.str(R.string.sig_wheel) to Words.degrees(s.wheelAngleDeg), w.str(R.string.sig_wiper) to if (s.wiper) on else off,
+        w.str(R.string.sig_fog) to if (s.fogLight) on else off,
     )
     Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
         rows.chunked(2).forEach { pair ->
             Row {
                 pair.forEach { (k, v) ->
                     Row(Modifier.weight(1f)) {
-                        Text(k, style = Type.caption, color = t.muted, modifier = Modifier.width(112.dp))
+                        Text(k, style = Type.caption, color = t.muted, modifier = Modifier.width(130.dp))
                         Text(v, style = Type.captionNum, color = t.ink)
                     }
                 }

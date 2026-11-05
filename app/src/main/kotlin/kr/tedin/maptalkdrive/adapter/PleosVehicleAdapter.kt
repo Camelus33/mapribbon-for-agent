@@ -22,6 +22,7 @@ import android.util.Log
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.update
+import kr.tedin.maptalkdrive.R
 import kr.tedin.maptalkdrive.port.Gear
 import kr.tedin.maptalkdrive.port.PortStatus
 import kr.tedin.maptalkdrive.port.VehiclePort
@@ -40,7 +41,7 @@ class PleosVehicleAdapter(context: Context) : VehiclePort {
     private val ctx = context.applicationContext
     private val _signals = MutableStateFlow(VehicleSignals())
     override val signals: StateFlow<VehicleSignals> = _signals
-    private val _status = MutableStateFlow(PortStatus("Pleos Vehicle SDK", live = false, note = "시작 전"))
+    private val _status = MutableStateFlow(PortStatus("Pleos Vehicle SDK", live = false, note = ctx.getString(R.string.port_not_started)))
     override val status: StateFlow<PortStatus> = _status
 
     private var vehicle: Vehicle? = null
@@ -164,9 +165,9 @@ class PleosVehicleAdapter(context: Context) : VehiclePort {
             source = "Pleos Vehicle SDK",
             live = heard.isNotEmpty(),
             note = when {
-                vehicle == null && heard.isEmpty() -> "Vehicle 서비스 없음"
-                heard.isEmpty() -> "등록함 · 아직 받은 신호 없음"
-                else -> "신호 ${heard.size}/7 수신" + if (missing.isNotEmpty()) " · 실패: ${missing.joinToString()}" else ""
+                vehicle == null && heard.isEmpty() -> ctx.getString(R.string.port_vehicle_missing)
+                heard.isEmpty() -> ctx.getString(R.string.port_vehicle_registered)
+                else -> ctx.getString(R.string.port_vehicle_signals, heard.size) + if (missing.isNotEmpty()) " · " + ctx.getString(R.string.port_vehicle_failed, missing.joinToString()) else ""
             },
         )
     }

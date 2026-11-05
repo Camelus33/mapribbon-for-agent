@@ -1,3 +1,108 @@
 <resources>
     <string name="app_name">MapRibbon for Agent</string>
+    <bool name="english_names">true</bool>
+
+    <!-- Briefing -->
+    <string name="sim_data">Simulated data</string>
+    <string name="demo">Demo</string>
+    <string name="preview_run">Preview run</string>
+    <string name="preview_stop">Stop</string>
+    <string name="tunnel_exit">%1$s exit</string>
+    <string name="speed_camera">Speed camera</string>
+    <string name="nothing_unusual">Nothing unusual on this route</string>
+    <string name="nothing_ahead">Nothing unusual ahead</string>
+    <string name="not_judged">%1$d places with too few cars, not judged</string>
+    <string name="minutes">%1$d min</string>
+    <string name="soon">now</string>
+    <string name="m_ahead">m</string>
+    <string name="km_ahead">km</string>
+    <string name="preview_desc">Preview run: the route before you leave. Nothing is recorded.</string>
+
+    <!-- Legend -->
+    <string name="legend_straight">Straight</string>
+    <string name="legend_curve">Curves</string>
+    <string name="legend_sharp">Sharp curves</string>
+    <string name="legend_tunnel">Tunnel</string>
+    <string name="legend_high">Clearly unusual</string>
+    <string name="legend_some">Somewhat unusual</string>
+    <string name="legend_usual">As usual</string>
+    <string name="legend_not_enough">Too few cars</string>
+    <string name="legend_usual_tick">Usual</string>
+
+    <!-- What was different -->
+    <string name="issue_wiper">Wipers switched on</string>
+    <string name="issue_fog">Fog lights switched on</string>
+    <string name="issue_late_merge">Late merges</string>
+    <string name="issue_hard_brake">Hard braking</string>
+    <string name="issue_stop">Stopped cars</string>
+    <string name="issue_entry_decel">Sharp slowdown</string>
+    <string name="issue_other">Unusual</string>
+
+    <!-- While driving -->
+    <string name="recording">Recording ribbons</string>
+    <string name="recording_count">Knots tied on this drive: %1$d</string>
+    <string name="recording_hint">The route view is for before you leave. While you drive, keep your eyes on the road and the navigation.</string>
+    <string name="recording_notice">Leaving knots for the cars behind</string>
+
+    <!-- Demo sheet -->
+    <string name="close">Close</string>
+    <string name="demo_hint">Send simulated cars down this route</string>
+    <string name="sim_cars">%1$d simulated cars</string>
+    <string name="sim_passing">Simulated cars passing · %1$d/%2$d</string>
+    <string name="knots">%1$d knots</string>
+    <string name="no_knots">No knots yet</string>
+    <string name="clear">Clear</string>
+    <string name="record_live">Record from car signals</string>
+    <string name="details">Details</string>
+    <string name="details_hide">Hide details</string>
+    <string name="agent_io">What the agents write and read</string>
+    <string name="agent_written">Last knot written (maptalk.knot/1)</string>
+    <string name="agent_read">Ribbon read (maptalk.ribbon/1)</string>
+    <string name="agent_none">Nothing yet</string>
+    <string name="agent_endpoint">Other agents read: content://kr.tedin.maptalkdrive.ribbons/ribbons</string>
+    <string name="connection">Car connection</string>
+    <string name="port_vehicle">Vehicle signals</string>
+    <string name="port_location">Location</string>
+    <string name="port_navi">Navigation</string>
+    <string name="sig_gear">Gear</string>
+    <string name="sig_speed">Speed</string>
+    <string name="sig_brake">Brake</string>
+    <string name="sig_turn">Turn signal</string>
+    <string name="sig_wheel">Wheel angle</string>
+    <string name="sig_wiper">Wipers</string>
+    <string name="sig_fog">Fog lights</string>
+    <string name="on">On</string>
+    <string name="off">Off</string>
+    <string name="pressed">Pressed</string>
+    <string name="left">Left</string>
+    <string name="right">Right</string>
+
+    <!-- Port status (demo sheet) -->
+    <string name="port_not_started">Not started</string>
+    <string name="port_location_name">Location</string>
+    <string name="port_fused_silent">FusedLocation silent</string>
+    <string name="port_fused_missing">No FusedLocation</string>
+    <string name="port_registered_waiting_fix">Registered · waiting for a fix</string>
+    <string name="port_waiting_fix">%1$s · waiting for a fix</string>
+    <string name="port_no_gps">%1$s · no GPS permission or device</string>
+    <string name="port_receiving_fixes">Receiving positions</string>
+    <string name="port_navi_connected">Connected · waiting for route events</string>
+    <string name="port_navi_registered">Registered · waiting for a reply</string>
+    <string name="port_navi_missing">No navigation service</string>
+    <string name="port_vehicle_missing">No Vehicle service</string>
+    <string name="port_vehicle_registered">Registered · no signal yet</string>
+    <string name="port_vehicle_signals">%1$d/7 signals</string>
+    <string name="port_vehicle_failed">failed: %1$s</string>
+
+    <!-- Log and route events -->
+    <string name="log_scenario">Scenario: %1$s</string>
+    <string name="log_sim_car">Simulated car %1$d · left %2$d min ago</string>
+    <string name="log_this_car">This car</string>
+    <string name="log_knots">%1$s · %2$d knots</string>
+    <string name="log_live_start">Recording from car signals (position: %1$s)</string>
+    <string name="log_live_stop">Recording stopped</string>
+    <string name="navi_route">Navigation route set · %1$s %2$.1f km · showing the demo route</string>
+    <string name="navi_destination">destination</string>
+    <string name="navi_arrived">Arrived</string>
+    <string name="navi_cancelled">Route cancelled</string>
 </resources>

@@ -1,0 +1,32 @@
+{
+  "spec": "maptalk.gleo-functions/1",
+  "about": "Functions a Gleo AI agent calls to read the MapRibbon channel. Each maps to a read-only content URI of kr.tedin.maptalkdrive; the answer is the JSON column of the returned rows (maptalk.ribbon/1 or maptalk.route/1). Written in JSON Schema function-calling form; Gleo's own schema review and connection are pending.",
+  "timeoutMs": 7000,
+  "functions": [
+    {
+      "name": "get_route_ribbons",
+      "description": "Ribbons on the current route, one per road facility (tunnel, junction, toll gate, camera) in driving order. Each says whether the last 15 to 180 minutes of cars behaved differently from usual there (deviation NONE, SOME, HIGH), why (metric, value, usual value), and how many cars that is based on. Facilities with fewer than three cars are NOT_ENOUGH and must not be described as usual.",
+      "parameters": { "type": "object", "properties": {}, "additionalProperties": false },
+      "contentUri": "content://kr.tedin.maptalkdrive.ribbons/ribbons"
+    },
+    {
+      "name": "get_next_unusual",
+      "description": "The next facility ahead on the route where cars recently behaved differently from usual, with its distance from the given position. Returns no row when nothing ahead is different.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "along_m": { "type": "number", "minimum": 0, "description": "Current position along the route, in metres from its start." }
+        },
+        "required": ["along_m"],
+        "additionalProperties": false
+      },
+      "contentUri": "content://kr.tedin.maptalkdrive.ribbons/next?along_m={along_m}"
+    },
+    {
+      "name": "get_route_shape",
+      "description": "How the route bends, cut into stretches of STRAIGHT (radius 2 km or more), CURVE (500 m to 2 km) and SHARP (under 500 m, slow down from 100 km/h) with the tightest radius of each, plus the facilities the ribbons hang on.",
+      "parameters": { "type": "object", "properties": {}, "additionalProperties": false },
+      "contentUri": "content://kr.tedin.maptalkdrive.ribbons/route"
+    }
+  ]
+}

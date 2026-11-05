@@ -1,0 +1,100 @@
+<resources>
+    <bool name="english_names">false</bool>
+
+    <string name="sim_data">시뮬레이션 데이터</string>
+    <string name="demo">시연</string>
+    <string name="preview_run">미리 달리기</string>
+    <string name="preview_stop">멈춤</string>
+    <string name="tunnel_exit">%1$s 출구</string>
+    <string name="speed_camera">단속카메라</string>
+    <string name="nothing_unusual">이 경로에 평소와 다른 곳 없음</string>
+    <string name="nothing_ahead">남은 길에 평소와 다른 곳 없음</string>
+    <string name="not_judged">차가 적어 판단하지 않은 곳 %1$d</string>
+    <string name="minutes">%1$d분</string>
+    <string name="soon">곧</string>
+    <string name="m_ahead">m</string>
+    <string name="km_ahead">km</string>
+    <string name="preview_desc">미리 달리기: 출발 전에 경로를 훑어봅니다. 기록은 남기지 않습니다.</string>
+
+    <string name="legend_straight">직선</string>
+    <string name="legend_curve">굽은 길</string>
+    <string name="legend_sharp">급커브</string>
+    <string name="legend_tunnel">터널</string>
+    <string name="legend_high">평소와 크게 다름</string>
+    <string name="legend_some">평소와 조금 다름</string>
+    <string name="legend_usual">평소대로</string>
+    <string name="legend_not_enough">차가 적음</string>
+    <string name="legend_usual_tick">평소</string>
+
+    <string name="issue_wiper">와이퍼 켬</string>
+    <string name="issue_fog">안개등 켬</string>
+    <string name="issue_late_merge">늦은 끼어들기</string>
+    <string name="issue_hard_brake">급제동</string>
+    <string name="issue_stop">멈춘 차</string>
+    <string name="issue_entry_decel">진입 급감속</string>
+    <string name="issue_other">평소와 다름</string>
+
+    <string name="recording">리본 기록 중</string>
+    <string name="recording_count">이번 주행에서 남긴 매듭 %1$d</string>
+    <string name="recording_hint">경로 화면은 출발 전에 봅니다. 주행 중에는 도로와 내비를 보세요.</string>
+    <string name="recording_notice">뒤에 올 차를 위해 매듭을 남기고 있습니다</string>
+
+    <string name="close">닫기</string>
+    <string name="demo_hint">가상 차량을 이 구간에 지나가게 합니다</string>
+    <string name="sim_cars">가상 차량 %1$d대</string>
+    <string name="sim_passing">가상 차량 통과 중 · %1$d/%2$d</string>
+    <string name="knots">매듭 %1$d</string>
+    <string name="no_knots">매듭 없음</string>
+    <string name="clear">비우기</string>
+    <string name="record_live">실차 신호로 기록</string>
+    <string name="details">자세히</string>
+    <string name="details_hide">자세히 닫기</string>
+    <string name="agent_io">에이전트가 쓰고 읽는 것</string>
+    <string name="agent_written">마지막으로 쓴 매듭 (maptalk.knot/1)</string>
+    <string name="agent_read">읽은 리본 (maptalk.ribbon/1)</string>
+    <string name="agent_none">아직 없음</string>
+    <string name="agent_endpoint">다른 에이전트가 읽는 곳: content://kr.tedin.maptalkdrive.ribbons/ribbons</string>
+    <string name="connection">차량 연결</string>
+    <string name="port_vehicle">차량 신호</string>
+    <string name="port_location">위치</string>
+    <string name="port_navi">내비</string>
+    <string name="sig_gear">기어</string>
+    <string name="sig_speed">속도</string>
+    <string name="sig_brake">브레이크</string>
+    <string name="sig_turn">방향지시등</string>
+    <string name="sig_wheel">앞바퀴 각도</string>
+    <string name="sig_wiper">와이퍼</string>
+    <string name="sig_fog">안개등</string>
+    <string name="on">켜짐</string>
+    <string name="off">꺼짐</string>
+    <string name="pressed">밟음</string>
+    <string name="left">왼쪽</string>
+    <string name="right">오른쪽</string>
+
+    <string name="port_not_started">시작 전</string>
+    <string name="port_location_name">위치</string>
+    <string name="port_fused_silent">FusedLocation 응답 없음</string>
+    <string name="port_fused_missing">FusedLocation 없음</string>
+    <string name="port_registered_waiting_fix">등록함 · 위치 대기</string>
+    <string name="port_waiting_fix">%1$s · 위치 대기</string>
+    <string name="port_no_gps">%1$s · GPS 권한 또는 장치 없음</string>
+    <string name="port_receiving_fixes">위치 수신 중</string>
+    <string name="port_navi_connected">연결됨 · 경로 이벤트 대기</string>
+    <string name="port_navi_registered">등록함 · 응답 대기</string>
+    <string name="port_navi_missing">내비 서비스 없음</string>
+    <string name="port_vehicle_missing">Vehicle 서비스 없음</string>
+    <string name="port_vehicle_registered">등록함 · 아직 받은 신호 없음</string>
+    <string name="port_vehicle_signals">신호 %1$d/7 수신</string>
+    <string name="port_vehicle_failed">실패: %1$s</string>
+
+    <string name="log_scenario">시나리오: %1$s</string>
+    <string name="log_sim_car">가상 차량 %1$d · %2$d분 전 출발</string>
+    <string name="log_this_car">이 차</string>
+    <string name="log_knots">%1$s · 매듭 %2$d</string>
+    <string name="log_live_start">실차 신호로 기록 시작 (위치: %1$s)</string>
+    <string name="log_live_stop">기록 멈춤</string>
+    <string name="navi_route">내비 경로 시작 · %1$s %2$.1f km · 시연 구간을 보여 줍니다</string>
+    <string name="navi_destination">목적지</string>
+    <string name="navi_arrived">목적지 도착</string>
+    <string name="navi_cancelled">경로 취소</string>
+</resources>

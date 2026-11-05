@@ -1,15 +1,23 @@
 package kr.tedin.maptalkdrive.ui
 
 import androidx.compose.foundation.Canvas
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.size
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.State
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.drawWithCache
+import androidx.compose.ui.graphics.CompositingStrategy
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Rect
+import androidx.compose.ui.geometry.Size
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.StrokeJoin
@@ -18,11 +26,16 @@ import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.drawscope.rotate
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.TextLayoutResult
+import androidx.compose.ui.text.TextMeasurer
 import androidx.compose.ui.text.drawText
 import androidx.compose.ui.text.rememberTextMeasurer
+import androidx.compose.ui.unit.Density
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import kr.tedin.maptalkdrive.ribbon.brief.Briefing
 import kr.tedin.maptalkdrive.ribbon.brief.BriefingItem
+import kr.tedin.maptalkdrive.ribbon.geo.CurveClass
+import kr.tedin.maptalkdrive.ribbon.geo.CurveStretch
 import kr.tedin.maptalkdrive.ribbon.geo.RouteIndex
 import kr.tedin.maptalkdrive.ribbon.spec.AnchorType
 import kr.tedin.maptalkdrive.ribbon.spec.Deviation
@@ -36,7 +49,7 @@ import kotlin.math.sin
 
 /**
  * The real road shape, turned and scaled so the start sits bottom-left and the destination top-right of `box`.
- * Turning keeps the shape and its proportions; positions along the road are read from the road's own metres.
+ * Turning and one scale for both axes keep the shape: a bend on screen is the bend on the road.
  */
 class RouteGeometry(route: RouteIndex, box: Rect) {
     private val pts: List<Offset>
@@ -94,18 +107,33 @@ class RouteGeometry(route: RouteIndex, box: Rect) {
     }
 }
 
+/** How each curve class is drawn: lighter and thinner for straight, darker and thicker the tighter the road bends. */
+fun curveStroke(c: CurveClass, t: Tokens): Pair<Color, Dp> = when (c) {
+    CurveClass.STRAIGHT -> t.muted to 3.dp
+    CurveClass.CURVE -> t.ink2 to 7.dp
+    CurveClass.SHARP -> t.ink to 11.dp
+}
+
+val TunnelBand = 22.dp
+
 /**
- * Parked: the road from bottom-left to top-right. Tunnels are thicker stretches, usual facilities quiet ticks across
- * the road, different ones status marks with a label set beside them, never over the road, another label or `reserved`.
+ * Parked, before departure: the road from bottom-left to top-right, drawn by how it bends. Tunnels are a quiet band
+ * under the road, usual facilities short ticks across it, different ones status marks with an icon chip beside them
+ * (what was different and how many cars), never over the road, another chip or a `reserved` area.
+ *
+ * `preview` puts the preview-run dot on the road and dims what it has passed. It is read only while drawing the
+ * overlay, so a moving dot redraws the overlay and nothing else.
  */
 @Composable
 fun RouteMap(
     briefing: Briefing,
     route: RouteIndex,
+    curves: List<CurveStretch>,
     startName: String,
     endName: String,
     t: Tokens,
     reserved: List<Rect>,
+    preview: State<Double?>,
     modifier: Modifier = Modifier,
 ) {
     val tm = rememberTextMeasurer()
@@ -115,87 +143,65 @@ fun RouteMap(
         val hPx = with(density) { maxHeight.toPx() }
         val inset = with(density) { 56.dp.toPx() }
         val geo = remember(route, wPx, hPx) { RouteGeometry(route, Rect(inset, inset, wPx - inset, hPx - inset)) }
-        Spacer(
-            Modifier.fillMaxSize().drawWithCache {
-                val ring = 2.dp.toPx()
-                val labels = placeLabels(briefing, geo, tm, t, reserved, size.width, size.height)
-                val tickStyle = Type.captionNum.copy(color = t.muted)
-                val lengthKm = route.lengthM / 1000
-                val ticks = (10 until lengthKm.toInt() step 10).map { km -> km to tm.measure("$km", tickStyle) }
-                val startL = tm.measure(startName, Type.caption.copy(color = t.ink2))
-                val endL = tm.measure(endName, Type.caption.copy(color = t.ink2))
-                val road = geo.path()
-                val tunnels = briefing.items.filter { it.anchor.type == AnchorType.TUNNEL }
-                    .map { geo.path(it.anchor.alongM.toDouble() + 30, it.anchor.endAlongM.toDouble() - 30) }
+        Box(Modifier.fillMaxSize()) {
+            // The map is drawn into its own offscreen layer: the preview dot above it redraws without re-recording the map.
+            Spacer(
+                Modifier.fillMaxSize().graphicsLayer { compositingStrategy = CompositingStrategy.Offscreen }.drawWithCache {
+                    val ring = 2.dp.toPx()
+                    val chips = placeChips(briefing, geo, tm, t, reserved, size.width, size.height)
+                    val tickStyle = Type.captionNum.copy(color = t.muted)
+                    val lengthKm = route.lengthM / 1000
+                    val ticks = (10 until lengthKm.toInt() step 10).map { km -> km to tm.measure("$km", tickStyle) }
+                    val startL = tm.measure(startName, Type.caption.copy(color = t.ink2))
+                    val endL = tm.measure(endName, Type.caption.copy(color = t.ink2))
+                    val tunnels = briefing.items.filter { it.anchor.type == AnchorType.TUNNEL }
+                        .map { geo.path(it.anchor.alongM.toDouble(), it.anchor.endAlongM.toDouble()) }
+                    val roads = CurveClass.entries.map { c -> c to curves.filter { it.curve == c }.map { geo.path(it.fromM, it.toM) } }
 
-                onDrawBehind {
-                    drawPath(road, t.trackAhead, style = Stroke(4.dp.toPx(), cap = StrokeCap.Round, join = StrokeJoin.Round))
-                    for (p in tunnels) drawPath(p, t.trackAhead, style = Stroke(12.dp.toPx(), cap = StrokeCap.Butt, join = StrokeJoin.Round))
-                    endTick(geo.start, geo.at(0.0).second, t)
-                    endTick(geo.end, geo.at(route.lengthM).second, t)
-
-                    // Kilometre ticks across the road, numbers on the lower-right side.
-                    for ((km, layout) in ticks) {
-                        val (p, dir) = geo.at(km * 1000.0)
-                        val n = Offset(-sin(dir), cos(dir)) // right-hand normal (down-right for an up-right road)
-                        drawLine(t.axis, p + n * 10.dp.toPx(), p + n * 18.dp.toPx(), 1.dp.toPx())
-                        val c = p + n * 34.dp.toPx()
-                        drawText(layout, topLeft = Offset(c.x - layout.size.width / 2f, c.y - layout.size.height / 2f))
-                    }
-                    drawText(startL, topLeft = Offset(geo.start.x - startL.size.width / 2f, geo.start.y + 20.dp.toPx()))
-                    drawText(endL, topLeft = Offset(geo.end.x - endL.size.width / 2f, geo.end.y - 20.dp.toPx() - endL.size.height))
-
-                    for (item in briefing.items) {
-                        val (c, dir) = geo.at(item.pointM.toDouble())
-                        when {
-                            item.state.status == RibbonStatus.NOT_ENOUGH -> notEnoughMark(c, 12.dp.toPx(), 2.dp.toPx(), t, t.surface)
-                            !item.different && item.anchor.type != AnchorType.TUNNEL -> crossTick(c, dir, t)
+                    onDrawBehind {
+                        for (p in tunnels) drawPath(p, t.tunnel, style = Stroke(TunnelBand.toPx(), cap = StrokeCap.Butt, join = StrokeJoin.Round))
+                        for ((c, paths) in roads) {
+                            val (color, width) = curveStroke(c, t)
+                            for (p in paths) drawPath(p, color, style = Stroke(width.toPx(), cap = StrokeCap.Round, join = StrokeJoin.Round))
                         }
-                    }
-                    for (item in briefing.items.filter { it.different }) {
-                        val d = item.state.deviation
-                        statusMark(geo.at(item.pointM.toDouble()).first, d, (if (d == Deviation.HIGH) 28 else 20).dp.toPx(), t, ring, t.surface)
-                    }
-                    for (l in labels) {
-                        drawLine(t.muted, l.leaderFrom, l.leaderTo, 1.dp.toPx())
-                        drawText(l.layout, topLeft = l.rect.topLeft)
-                    }
-                }
-            },
-        )
-    }
-}
+                        endTick(geo.start, geo.at(0.0).second, t)
+                        endTick(geo.end, geo.at(route.lengthM).second, t)
 
-/** Driving: the same road with no text. Behind me dimmed, my stretch to the next difference highlighted, me as a chevron. */
-@Composable
-fun DrivingMap(briefing: Briefing, route: RouteIndex, myAlongM: Double, t: Tokens, modifier: Modifier = Modifier) {
-    BoxWithConstraints(modifier) {
-        val density = LocalDensity.current
-        val wPx = with(density) { maxWidth.toPx() }
-        val hPx = with(density) { maxHeight.toPx() }
-        val inset = with(density) { 40.dp.toPx() }
-        val geo = remember(route, wPx, hPx) { RouteGeometry(route, Rect(inset, inset, wPx - inset, hPx - inset)) }
-        val road = remember(geo) { geo.path() }
-        Canvas(Modifier.fillMaxSize()) {
-            val w = 6.dp.toPx()
-            val next = briefing.nextDifferentAhead(myAlongM)
-            drawPath(road, t.trackAhead, style = Stroke(w, cap = StrokeCap.Round, join = StrokeJoin.Round))
-            drawPath(geo.path(0.0, myAlongM), t.trackPassed, style = Stroke(w, cap = StrokeCap.Round, join = StrokeJoin.Round))
-            if (next != null) drawPath(geo.path(myAlongM, next.first.pointM.toDouble()), t.trackToNext, style = Stroke(w, cap = StrokeCap.Round, join = StrokeJoin.Round))
-            endTick(geo.end, geo.at(route.lengthM).second, t)
-            for (item in briefing.items.filter { it.different && it.pointM > myAlongM }) {
-                val isNext = item.anchor.id == next?.first?.anchor?.id
-                val d = item.state.deviation
-                val s = when {
-                    d == Deviation.HIGH && isNext -> 32
-                    d == Deviation.HIGH -> 24
-                    isNext -> 26
-                    else -> 18
-                }.dp.toPx()
-                statusMark(geo.at(item.pointM.toDouble()).first, d, s, t, 2.dp.toPx(), t.surface)
+                        // Kilometre ticks across the road, numbers on the lower-right side.
+                        for ((km, layout) in ticks) {
+                            val (p, dir) = geo.at(km * 1000.0)
+                            val n = Offset(-sin(dir), cos(dir)) // right-hand normal (down-right for an up-right road)
+                            drawLine(t.axis, p + n * 16.dp.toPx(), p + n * 24.dp.toPx(), 1.dp.toPx())
+                            val c = p + n * 40.dp.toPx()
+                            drawText(layout, topLeft = Offset(c.x - layout.size.width / 2f, c.y - layout.size.height / 2f))
+                        }
+                        drawText(startL, topLeft = Offset(geo.start.x - startL.size.width / 2f, geo.start.y + 20.dp.toPx()))
+                        drawText(endL, topLeft = Offset(geo.end.x - endL.size.width / 2f, geo.end.y - 20.dp.toPx() - endL.size.height))
+
+                        for (item in briefing.items) {
+                            val (c, dir) = geo.at(item.pointM.toDouble())
+                            when {
+                                item.state.status == RibbonStatus.NOT_ENOUGH -> notEnoughMark(c, 12.dp.toPx(), 2.dp.toPx(), t, t.surface)
+                                !item.different && item.anchor.type != AnchorType.TUNNEL -> crossTick(c, dir, t)
+                            }
+                        }
+                        for (item in briefing.items.filter { it.different }) {
+                            val d = item.state.deviation
+                            statusMark(geo.at(item.pointM.toDouble()).first, d, (if (d == Deviation.HIGH) 28 else 20).dp.toPx(), t, ring, t.surface)
+                        }
+                        for (chip in chips) drawChip(chip, t)
+                    }
+                },
+            )
+            Canvas(Modifier.fillMaxSize().graphicsLayer()) {
+                val previewAlongM = preview.value
+                if (previewAlongM != null) {
+                    // What the preview has passed fades back; the dot runs on the road.
+                    drawPath(geo.path(0.0, previewAlongM), t.surface.copy(alpha = 0.72f), style = Stroke(TunnelBand.toPx() + 4.dp.toPx(), cap = StrokeCap.Butt, join = StrokeJoin.Round))
+                    val (me, dir) = geo.at(previewAlongM)
+                    rotate((dir * 180 / PI).toFloat(), me) { chevron(me, 30.dp.toPx(), t, 3.dp.toPx()) }
+                }
             }
-            val (me, dir) = geo.at(myAlongM)
-            rotate((dir * 180 / PI).toFloat(), me) { chevron(me, 28.dp.toPx(), t, 2.dp.toPx()) }
         }
     }
 }
@@ -207,66 +213,101 @@ private fun DrawScope.endTick(p: Offset, dir: Float, t: Tokens) {
 
 private fun DrawScope.crossTick(p: Offset, dir: Float, t: Tokens) {
     val n = Offset(-sin(dir), cos(dir))
-    drawLine(t.muted, p - n * 6.dp.toPx(), p + n * 6.dp.toPx(), 2.dp.toPx())
+    drawLine(t.ink2, p - n * 14.dp.toPx(), p + n * 14.dp.toPx(), 2.dp.toPx())
 }
 
-private data class MapLabel(val item: BriefingItem, val layout: TextLayoutResult, val rect: Rect, val leaderFrom: Offset, val leaderTo: Offset, val cost: Int)
+/** An icon chip: what was different (icon) and how many cars ("6/9"), joined to its mark by a leader. */
+private data class MapChip(val item: BriefingItem, val count: TextLayoutResult, val rect: Rect, val leaderFrom: Offset, val leaderTo: Offset, val cost: Int)
+
+private fun DrawScope.drawChip(chip: MapChip, t: Tokens) {
+    drawLine(t.muted, chip.leaderFrom, chip.leaderTo, 1.dp.toPx())
+    val r = chip.rect
+    drawRoundRect(t.surface, r.topLeft, r.size, CornerRadius(8.dp.toPx()))
+    drawRoundRect(t.axis, r.topLeft, r.size, CornerRadius(8.dp.toPx()), style = Stroke(1.dp.toPx()))
+    val icon = ChipIcon.toPx()
+    val pad = ChipPad.toPx()
+    issueIcon(Words.top(chip.item)?.metric, Offset(r.left + pad + icon / 2, r.center.y), icon, t.ink)
+    drawText(chip.count, topLeft = Offset(r.left + pad + icon + ChipGap.toPx(), r.center.y - chip.count.size.height / 2f))
+}
+
+private val ChipIcon = 36.dp
+private val ChipPad = 10.dp
+private val ChipGap = 8.dp
 
 /**
- * Each label may sit in four directions from its mark at three distances. All combinations for the (at most three)
- * labels are tried; a combination is valid when no label overlaps another label, the road, another mark, a reserved
- * area or the edge. The cheapest valid one wins (perpendicular to the road and close first).
+ * Each chip may sit in four directions from its mark at three distances. All combinations for the (at most three)
+ * chips are tried; a combination is valid when no chip overlaps another chip, the road, another mark, a reserved
+ * area or the edge. The cheapest valid one wins (across the road and close first).
  */
-private fun androidx.compose.ui.unit.Density.placeLabels(
-    briefing: Briefing, geo: RouteGeometry, tm: androidx.compose.ui.text.TextMeasurer, t: Tokens,
+private fun Density.placeChips(
+    briefing: Briefing, geo: RouteGeometry, tm: TextMeasurer, t: Tokens,
     reserved: List<Rect>, w: Float, h: Float,
-): List<MapLabel> {
+): List<MapChip> {
     val roadPts = geo.samples(6.dp.toPx())
     val marks = briefing.items.filter { it.different }.map { geo.at(it.pointM.toDouble()).first }
     val pad = 8.dp.toPx()
+    val roadClear = TunnelBand.toPx() / 2
     val options = briefing.labeled.sortedBy { it.pointM }.map { item ->
-        val layout = tm.measure("${Words.place(item)} · ${Words.issueShort(Words.top(item)?.metric)}", Type.label.copy(color = t.ink))
-        val lw = layout.size.width.toFloat(); val lh = layout.size.height.toFloat()
+        val count = tm.measure(Words.count(item), Type.label.copy(color = t.ink, fontFeatureSettings = "tnum"))
+        val cw = ChipPad.toPx() * 2 + ChipIcon.toPx() + ChipGap.toPx() + count.size.width
+        val ch = ChipIcon.toPx() + 12.dp.toPx()
         val (c, _) = geo.at(item.pointM.toDouble())
         val r = (if (item.state.deviation == Deviation.HIGH) 18 else 14).dp.toPx()
         // (dx, dy) unit directions; up-left and down-right lie across an up-right road.
         val dirs = listOf(Triple(-1f, -1f, 0), Triple(1f, 1f, 0), Triple(1f, -1f, 1), Triple(-1f, 1f, 1))
-        listOf(20, 56, 104).flatMapIndexed { di, dist ->
+        listOf(24, 60, 108).flatMapIndexed { di, dist ->
             dirs.map { (sx, sy, dirCost) ->
                 val g = dist.dp.toPx()
-                val left = if (sx > 0) c.x + g * 0.6f else c.x - g * 0.6f - lw
-                val top = if (sy > 0) c.y + g * 0.6f else c.y - g * 0.6f - lh
-                val rect = Rect(left, top, left + lw, top + lh)
+                val left = if (sx > 0) c.x + g * 0.6f else c.x - g * 0.6f - cw
+                val top = if (sy > 0) c.y + g * 0.6f else c.y - g * 0.6f - ch
+                val rect = Rect(left, top, left + cw, top + ch)
                 val corner = Offset(if (sx > 0) rect.left else rect.right, if (sy > 0) rect.top else rect.bottom)
                 val from = c + (corner - c) * (r / maxOf(1f, (corner - c).getDistance()))
-                MapLabel(item, layout, rect, from, corner, dirCost + di * 3)
+                MapChip(item, count, rect, from, corner, dirCost + di * 3)
             }
         }.filter { o ->
             val box = o.rect.inflate(pad)
             box.left >= 0 && box.top >= 0 && box.right <= w && box.bottom <= h &&
                 reserved.none { it.overlaps(box) } &&
-                roadPts.none { box.contains(it) } &&
+                roadPts.none { box.inflate(roadClear).contains(it) } &&
                 marks.none { m -> box.inflate(14.dp.toPx()).contains(m) }
         }
     }
-    var best: List<MapLabel>? = null
-    fun search(i: Int, chosen: List<MapLabel>) {
+    var best: List<MapChip>? = null
+    fun search(i: Int, chosen: List<MapChip>) {
         if (best != null && chosen.sumOf { it.cost } >= best!!.sumOf { it.cost }) return
         if (i == options.size) { best = chosen; return }
-        if (options[i].isEmpty()) { search(i + 1, chosen); return } // no room: this label is left to the table
+        if (options[i].isEmpty()) { search(i + 1, chosen); return } // no room: this one is left to the list
         for (o in options[i]) if (chosen.none { it.rect.inflate(16.dp.toPx()).overlaps(o.rect) }) search(i + 1, chosen + o)
     }
     search(0, emptyList())
     return best.orEmpty()
 }
 
-/** The swatch for one legend entry, drawn exactly like the map draws that state. */
+/** The swatch for one legend entry, drawn exactly like the map draws it. */
 @Composable
 fun LegendSwatch(kind: LegendKind, t: Tokens) = when (kind) {
     LegendKind.HIGH -> StatusGlyph(Deviation.HIGH, 24.dp, t, t.surface)
     LegendKind.SOME -> StatusGlyph(Deviation.SOME, 24.dp, t, t.surface)
-    LegendKind.USUAL -> StatusGlyph(Deviation.NONE, 24.dp, t, t.surface)
+    LegendKind.USUAL -> Canvas(Modifier.size(24.dp)) {
+        drawLine(t.muted, Offset(0f, size.height / 2), Offset(size.width, size.height / 2), 3.dp.toPx())
+        drawLine(t.ink2, Offset(size.width / 2, size.height / 2 - 14.dp.toPx() / 2), Offset(size.width / 2, size.height / 2 + 14.dp.toPx() / 2), 2.dp.toPx())
+    }
     LegendKind.NOT_ENOUGH -> StatusGlyph(Deviation.NONE, 24.dp, t, t.surface, notEnough = true)
+    LegendKind.STRAIGHT, LegendKind.CURVE, LegendKind.SHARP -> Canvas(Modifier.size(width = 40.dp, height = 24.dp)) {
+        val c = when (kind) { LegendKind.STRAIGHT -> CurveClass.STRAIGHT; LegendKind.CURVE -> CurveClass.CURVE; else -> CurveClass.SHARP }
+        val (color, width) = curveStroke(c, t)
+        val p = Path().apply {
+            moveTo(4.dp.toPx(), size.height * 0.7f)
+            if (c == CurveClass.STRAIGHT) lineTo(size.width - 4.dp.toPx(), size.height * 0.3f)
+            else quadraticBezierTo(size.width * 0.5f, if (c == CurveClass.SHARP) -size.height * 0.5f else size.height * 0.05f, size.width - 4.dp.toPx(), size.height * 0.7f)
+        }
+        drawPath(p, color, style = Stroke(width.toPx(), cap = StrokeCap.Round))
+    }
+    LegendKind.TUNNEL -> Canvas(Modifier.size(width = 40.dp, height = 24.dp)) {
+        drawRect(t.tunnel, Offset(0f, (size.height - TunnelBand.toPx()) / 2), Size(size.width, TunnelBand.toPx()))
+        drawLine(t.muted, Offset(0f, size.height / 2), Offset(size.width, size.height / 2), 3.dp.toPx())
+    }
 }
 
-enum class LegendKind { HIGH, SOME, USUAL, NOT_ENOUGH }
+enum class LegendKind { HIGH, SOME, USUAL, NOT_ENOUGH, STRAIGHT, CURVE, SHARP, TUNNEL }

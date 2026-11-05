@@ -18,6 +18,7 @@ data class Scenario(
     val id: String,
     val title: String,
     val description: String,
+    val titleEn: String? = null,
     val vehicles: List<SimVehicle>,
 )
 

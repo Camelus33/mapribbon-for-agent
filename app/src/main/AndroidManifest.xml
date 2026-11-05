@@ -17,6 +17,10 @@
     <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
     <!-- Vehicle speed from AAOS CarPropertyManager (the Vehicle SDK has none). -->
     <uses-permission android:name="android.car.permission.CAR_SPEED" />
+    <!-- Recording keeps running with the navigation in front. -->
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_LOCATION" />
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
 
     <application
         android:allowBackup="false"
@@ -27,12 +31,24 @@
             android:name=".MainActivity"
             android:exported="true"
             android:screenOrientation="landscape">
-            <!-- The driving view shows one line and no controls while the car moves. -->
+            <!-- While the car moves the app shows only that it is recording, with no map and no controls. -->
             <meta-data android:name="distractionOptimized" android:value="true" />
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>
+
+        <!-- This car's agent ties knots while the navigation is in front. -->
+        <service
+            android:name=".channel.RecordService"
+            android:exported="false"
+            android:foregroundServiceType="location" />
+
+        <!-- Other agents in the car read the ribbon channel here (read-only aggregates, no identities). -->
+        <provider
+            android:name=".channel.RibbonProvider"
+            android:authorities="kr.tedin.maptalkdrive.ribbons"
+            android:exported="true" />
     </application>
 </manifest>
