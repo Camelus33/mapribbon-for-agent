@@ -31,7 +31,10 @@ import kr.tedin.maptalkdrive.ribbon.detect.TurnSignal
 /**
  * Vehicle signals from the Pleos Vehicle SDK, plus speed from AAOS CarPropertyManager (the SDK has no speed).
  * Every registration is guarded on its own: a platform without one signal still delivers the others, and a platform
- * without the Pleos service at all leaves the app running with `live = false`.
+ * without the Pleos service at all leaves the app running.
+ *
+ * A registration that succeeds proves nothing (the SDK accepts listeners even when its service is down), so the
+ * status turns live only when a value has actually arrived.
  */
 class PleosVehicleAdapter(context: Context) : VehiclePort {
     private val ctx = context.applicationContext
@@ -42,52 +45,68 @@ class PleosVehicleAdapter(context: Context) : VehiclePort {
 
     private var vehicle: Vehicle? = null
     private var car: Car? = null
-    private val failed = mutableListOf<String>()
+    private val failed: MutableSet<String> = java.util.concurrent.ConcurrentHashMap.newKeySet() // callbacks arrive on binder threads
+    private val heard: MutableSet<String> = java.util.concurrent.ConcurrentHashMap.newKeySet()
 
     private val brake = object : BrakePedalStatusListener {
-        override fun onBrakePedalStatusUpdated(status: Boolean?) = _signals.update { it.copy(brake = status == true) }
-        override fun onFailed(exception: Exception) { Log.w(TAG, "brake failed", exception) }
+        override fun onBrakePedalStatusUpdated(status: Boolean?) {
+            got("brake"); _signals.update { it.copy(brake = status == true) }
+        }
+        override fun onFailed(exception: Exception) = fail("brake", exception)
     }
     private val turn = object : TurnSignalStateListener {
-        override fun onTurnSignalStateUpdated(state: TurnSignalValue?) = _signals.update {
-            it.copy(turnSignal = when (state) { TurnSignalValue.LEFT -> TurnSignal.LEFT; TurnSignalValue.RIGHT -> TurnSignal.RIGHT; else -> TurnSignal.OFF })
+        override fun onTurnSignalStateUpdated(state: TurnSignalValue?) {
+            got("turn")
+            _signals.update {
+                it.copy(turnSignal = when (state) { TurnSignalValue.LEFT -> TurnSignal.LEFT; TurnSignalValue.RIGHT -> TurnSignal.RIGHT; else -> TurnSignal.OFF })
+            }
         }
-        override fun onFailed(exception: Exception) { Log.w(TAG, "turn failed", exception) }
+        override fun onFailed(exception: Exception) = fail("turn", exception)
     }
     private val wheel = object : SteeringWheelAngleListener {
-        override fun onSteeringWheelAngleUpdated(angle: Float?) = _signals.update { it.copy(wheelAngleDeg = angle?.toDouble()) }
-        override fun onFailed(exception: Exception) { Log.w(TAG, "wheel failed", exception) }
+        override fun onSteeringWheelAngleUpdated(angle: Float?) {
+            got("wheel"); _signals.update { it.copy(wheelAngleDeg = angle?.toDouble()) }
+        }
+        override fun onFailed(exception: Exception) = fail("wheel", exception)
     }
     private val wiper = object : WiperStateListener {
-        override fun onWiperStateUpdated(state: WiperState?) = _signals.update { it.copy(wiper = state == WiperState.ON) }
-        override fun onFailed(exception: Exception) { Log.w(TAG, "wiper failed", exception) }
+        override fun onWiperStateUpdated(state: WiperState?) {
+            got("wiper"); _signals.update { it.copy(wiper = state == WiperState.ON) }
+        }
+        override fun onFailed(exception: Exception) = fail("wiper", exception)
     }
     private val fog = object : LightStateListener {
-        override fun onLightStateUpdated(state: LightState?) = _signals.update { it.copy(fogLight = state == LightState.ON) }
-        override fun onFailed(exception: Exception) { Log.w(TAG, "fog failed", exception) }
+        override fun onLightStateUpdated(state: LightState?) {
+            got("fog"); _signals.update { it.copy(fogLight = state == LightState.ON) }
+        }
+        override fun onFailed(exception: Exception) = fail("fog", exception)
     }
     private val gear = object : GearSelectionListener {
-        override fun onSelected(gear: VehicleGear?) = _signals.update {
-            it.copy(gear = when (gear) {
-                VehicleGear.GEAR_PARK -> Gear.PARK
-                VehicleGear.GEAR_REVERSE -> Gear.REVERSE
-                VehicleGear.GEAR_NEUTRAL -> Gear.NEUTRAL
-                null, VehicleGear.GEAR_UNKNOWN -> Gear.UNKNOWN
-                else -> Gear.DRIVE
-            })
+        override fun onSelected(gear: VehicleGear?) {
+            got("gear")
+            _signals.update {
+                it.copy(gear = when (gear) {
+                    VehicleGear.GEAR_PARK -> Gear.PARK
+                    VehicleGear.GEAR_REVERSE -> Gear.REVERSE
+                    VehicleGear.GEAR_NEUTRAL -> Gear.NEUTRAL
+                    null, VehicleGear.GEAR_UNKNOWN -> Gear.UNKNOWN
+                    else -> Gear.DRIVE
+                })
+            }
         }
-        override fun onFailed(exception: Exception) { Log.w(TAG, "gear failed", exception) }
+        override fun onFailed(exception: Exception) = fail("gear", exception)
     }
     private val speed = object : CarPropertyManager.CarPropertyEventCallback {
         override fun onChangeEvent(value: CarPropertyValue<*>) {
             val mps = (value.value as? Float) ?: return
-            _signals.update { it.copy(speedKmh = mps * 3.6) }
+            got("speed"); _signals.update { it.copy(speedKmh = mps * 3.6) }
         }
         override fun onErrorEvent(propertyId: Int, areaId: Int) = Unit
     }
 
     override fun start() {
         failed.clear()
+        heard.clear()
         val v = try {
             Vehicle(ctx).also { it.initialize() }
         } catch (e: Throwable) {
@@ -109,15 +128,7 @@ class PleosVehicleAdapter(context: Context) : VehiclePort {
             val cpm = c.getCarManager(Car.PROPERTY_SERVICE) as CarPropertyManager
             cpm.registerCallback(speed, VehiclePropertyIds.PERF_VEHICLE_SPEED, CarPropertyManager.SENSOR_RATE_NORMAL)
         }
-        _status.value = PortStatus(
-            source = "Pleos Vehicle SDK",
-            live = v != null,
-            note = when {
-                v == null -> "Vehicle 서비스 없음"
-                failed.isEmpty() -> "신호 6종 + 속도 수신 중"
-                else -> "수신 실패: ${failed.joinToString()}"
-            },
-        )
+        refreshStatus()
     }
 
     override fun stop() {
@@ -136,6 +147,28 @@ class PleosVehicleAdapter(context: Context) : VehiclePort {
             runCatching { c.disconnect() }
         }
         car = null
+    }
+
+    private fun got(name: String) {
+        if (heard.add(name)) refreshStatus()
+    }
+
+    private fun fail(name: String, e: Exception) {
+        Log.w(TAG, "$name failed", e)
+        if (failed.add(name)) refreshStatus()
+    }
+
+    private fun refreshStatus() {
+        val missing = failed - heard
+        _status.value = PortStatus(
+            source = "Pleos Vehicle SDK",
+            live = heard.isNotEmpty(),
+            note = when {
+                vehicle == null && heard.isEmpty() -> "Vehicle 서비스 없음"
+                heard.isEmpty() -> "등록함 · 아직 받은 신호 없음"
+                else -> "신호 ${heard.size}/7 수신" + if (missing.isNotEmpty()) " · 실패: ${missing.joinToString()}" else ""
+            },
+        )
     }
 
     private inline fun guard(name: String, block: () -> Unit) {

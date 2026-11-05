@@ -3,9 +3,12 @@ package kr.tedin.maptalkdrive.adapter
 import ai.pleos.playground.navi.constants.NaviErrorCode
 import ai.pleos.playground.navi.data.DestinationArrivedInfo
 import ai.pleos.playground.navi.data.RouteStartInfo
+import ai.pleos.playground.navi.data.RouteStateInfo
 import ai.pleos.playground.navi.helper.NaviHelper
 import ai.pleos.playground.navi.helper.listener.NaviHelperEventListener
 import android.content.Context
+import android.os.Handler
+import android.os.Looper
 import android.util.Log
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -26,6 +29,10 @@ class PleosNaviAdapter(context: Context) : NaviPort {
     private val _status = MutableStateFlow(PortStatus("Pleos NaviHelper", live = false, note = "시작 전"))
     override val status: StateFlow<PortStatus> = _status
     private var helper: NaviHelper? = null
+    private val main = Handler(Looper.getMainLooper())
+    // The SDK binds to the navigation service asynchronously and drops requests sent before it is bound,
+    // so the "are you there" probe is repeated a few times after start.
+    private val probe = Runnable { helper?.let { h -> runCatching { h.getRouteStateInfo() } } }
 
     private val listener = object : NaviHelperEventListener {
         override fun onRouteStarted(info: RouteStartInfo) {
@@ -40,6 +47,10 @@ class PleosNaviAdapter(context: Context) : NaviPort {
         override fun onError(errorCode: NaviErrorCode) {
             Log.w(TAG, "navi error $errorCode")
         }
+        // Answer to the probe sent in start(): proof that the navigation service is really there.
+        override fun onRouteStateInfo(info: RouteStateInfo) {
+            _status.value = PortStatus("Pleos NaviHelper", live = true, note = "연결됨 · 경로 이벤트 대기")
+        }
     }
 
     override fun start() {
@@ -49,14 +60,19 @@ class PleosNaviAdapter(context: Context) : NaviPort {
             Log.w(TAG, "NaviHelper unavailable", e)
             null
         }
-        _status.value = if (helper != null) PortStatus("Pleos NaviHelper", live = true, note = "경로 이벤트 대기")
+        _status.value = if (helper != null) PortStatus("Pleos NaviHelper", live = false, note = "등록함 · 응답 대기")
         else PortStatus("Pleos NaviHelper", live = false, note = "내비 서비스 없음")
+        if (helper != null) PROBE_AT_MS.forEach { main.postDelayed(probe, it) }
     }
 
     override fun stop() {
+        main.removeCallbacks(probe)
         helper?.let { h -> runCatching { h.removeListener(listener) }; runCatching { h.release() } }
         helper = null
     }
 
-    private companion object { const val TAG = "PleosNavi" }
+    private companion object {
+        const val TAG = "PleosNavi"
+        val PROBE_AT_MS = listOf(1_000L, 3_000L, 6_000L)
+    }
 }

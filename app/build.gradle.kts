@@ -1,8 +1,16 @@
+import java.util.Properties
+
 plugins {
     id("com.android.application")
     id("org.jetbrains.kotlin.android")
     id("org.jetbrains.kotlin.plugin.compose")
     kotlin("plugin.serialization")
+}
+
+// The release key lives outside the repository. Without keystore.properties the release build is signed with the
+// debug key, so anyone building from source still gets an installable APK.
+val releaseKey = rootProject.file("keystore.properties").takeIf { it.exists() }?.let { f ->
+    Properties().apply { f.inputStream().use { load(it) } }
 }
 
 android {
@@ -21,9 +29,21 @@ android {
     // CarPropertyManager (speed, gear) and CarUxRestrictionsManager (driving restrictions).
     useLibrary("android.car")
 
+    signingConfigs {
+        if (releaseKey != null) {
+            create("release") {
+                storeFile = file(releaseKey.getProperty("storeFile"))
+                storePassword = releaseKey.getProperty("storePassword")
+                keyAlias = releaseKey.getProperty("keyAlias")
+                keyPassword = releaseKey.getProperty("keyPassword")
+            }
+        }
+    }
+
     buildTypes {
         release {
             isMinifyEnabled = false
+            signingConfig = signingConfigs.findByName("release") ?: signingConfigs.getByName("debug")
         }
     }
     compileOptions {
@@ -62,4 +82,12 @@ dependencies {
     implementation("androidx.compose.ui:ui")
     implementation("androidx.compose.ui:ui-graphics")
     implementation("androidx.compose.material3:material3")
+}
+
+// Contest submission layout: apk/<team>_<app>_release.apk at the repository root.
+tasks.register<Copy>("submissionApk") {
+    dependsOn("assembleRelease")
+    from(layout.buildDirectory.file("outputs/apk/release/app-release.apk"))
+    into(rootProject.layout.projectDirectory.dir("apk"))
+    rename { "Tedin_MaptalkDrive_release.apk" }
 }
