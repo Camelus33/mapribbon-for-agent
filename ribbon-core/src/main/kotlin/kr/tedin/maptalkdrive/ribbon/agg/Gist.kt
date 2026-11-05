@@ -25,6 +25,7 @@ object Gist {
             Metric.HARD_BRAKE_RATE -> "$name 구간, $w 중 ${v}가 급제동$usual."
             Metric.STOP_RATE -> "$name, $w 중 ${v}가 멈춤$usual."
             Metric.WIPER_ON_RATE -> "$name, $w 중 ${v}가 와이퍼 사용$usual."
+            Metric.FOG_ON_RATE -> "$name, $w 중 ${v}가 안개등 사용$usual."
             Metric.ENTRY_DECEL_KMH -> "$name 진입 전, $w 평균 $v 감속$usual."
             else -> "$name, $w, ${top.metric} $v$usual."
         }

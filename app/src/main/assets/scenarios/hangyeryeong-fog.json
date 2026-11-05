@@ -2,9 +2,9 @@
   "spec": "maptalk.scenario/1",
   "id": "hangyeryeong-fog",
   "routeId": "N44E",
-  "title": "한계령: 남설악터널 너머 안개, 내리막 카메라 앞 급제동",
-  "titleEn": "Hangyeryeong: fog past the Namseorak Tunnel, hard braking at the camera downhill",
-  "description": "고개를 넘은 뒤 9대 중 6대가 남설악터널 출구에서 안개등을 켜고, 3대가 내리막 가상 단속카메라 앞에서 급제동한다.",
+  "title": "한계령: 헤어핀 급제동, 남설악터널 너머 안개, 카메라 앞 급제동",
+  "titleEn": "Hangyeryeong: hard braking at a hairpin, fog past the Namseorak Tunnel, braking at the camera",
+  "description": "고개를 넘어 내려가는 31.5–33.5 km 구간 헤어핀에서 9대 중 4대가 급제동한다. 6대가 남설악터널 출구에서 안개등을 켜고, 3대가 내리막 가상 단속카메라 앞에서 급제동한다.",
   "vehicles": [
     {
       "id": "sim-1",
@@ -39,6 +39,16 @@
           "fromM": 48067,
           "toM": 50537,
           "fog": true
+        },
+        {
+          "fromM": 32402,
+          "toM": 32602,
+          "kmh": 25
+        },
+        {
+          "fromM": 32392,
+          "toM": 32482,
+          "brake": true
         }
       ]
     },
@@ -75,6 +85,16 @@
           "fromM": 37705,
           "toM": 37795,
           "brake": true
+        },
+        {
+          "fromM": 32402,
+          "toM": 32602,
+          "kmh": 25
+        },
+        {
+          "fromM": 32392,
+          "toM": 32482,
+          "brake": true
         }
       ]
     },
@@ -101,6 +121,16 @@
           "fromM": 48067,
           "toM": 50537,
           "fog": true
+        },
+        {
+          "fromM": 32402,
+          "toM": 32602,
+          "kmh": 25
+        },
+        {
+          "fromM": 32392,
+          "toM": 32482,
+          "brake": true
         }
       ]
     },
@@ -127,7 +157,18 @@
       "startMinutesAgo": 91,
       "kmh": 62,
       "widthClass": "MEDIUM",
-      "segments": []
+      "segments": [
+        {
+          "fromM": 32402,
+          "toM": 32602,
+          "kmh": 25
+        },
+        {
+          "fromM": 32392,
+          "toM": 32482,
+          "brake": true
+        }
+      ]
     },
     {
       "id": "sim-9",

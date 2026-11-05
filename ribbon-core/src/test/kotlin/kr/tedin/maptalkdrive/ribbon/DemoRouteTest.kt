@@ -8,6 +8,7 @@ import kr.tedin.maptalkdrive.ribbon.demo.ScenarioDrive
 import kr.tedin.maptalkdrive.ribbon.detect.PassDetector
 import kr.tedin.maptalkdrive.ribbon.geo.RouteIndex
 import kr.tedin.maptalkdrive.ribbon.spec.AnchorSet
+import kr.tedin.maptalkdrive.ribbon.spec.AnchorType
 import kr.tedin.maptalkdrive.ribbon.spec.Deviation
 import kr.tedin.maptalkdrive.ribbon.spec.Knot
 import kr.tedin.maptalkdrive.ribbon.spec.Metric
@@ -38,7 +39,8 @@ class DemoRouteTest {
                 .flatMap { detector.accept(it) }.toList()
         }
         val states = RibbonEngine(anchorSet.anchors, baseline).states(knots, now)
-        return knots to states.associateBy { it.anchor.name.takeIf { n -> anchorSet.anchors.count { it.name == n } == 1 } ?: it.anchor.id }
+        // Facilities by name where it is unique, segments (named by their km) and the rest by id.
+        return knots to states.associateBy { s -> s.anchor.name.takeIf { n -> s.anchor.type != AnchorType.SEGMENT && anchorSet.anchors.count { it.name == n } == 1 } ?: s.anchor.id }
     }
 
     @Test fun `every simulated car ties one knot per anchor`() {
@@ -59,12 +61,35 @@ class DemoRouteTest {
         val ic = s.getValue("서양양IC")
         assertTrue(ic.deviation != Deviation.NONE && ic.reasons.first().metric == Metric.LATE_LANE_CHANGE_RATE, ic.toString())
 
+        // The two segments past the tunnel, where three cars keep their fog lights on for 3 km; the rain itself covers
+        // every segment east of the tunnel alike, so it is not a difference on any of them.
         val different = s.values.filter { it.deviation != Deviation.NONE }.map { it.anchor.id }.sorted()
-        assertEquals(listOf("SY60E-C01", "SY60E-J01", "SY60E-T08"), different)
+        assertEquals(listOf("SY60E-C01", "SY60E-J01", "SY60E-S04", "SY60E-S05", "SY60E-T08"), different)
+        for (id in listOf("SY60E-S04", "SY60E-S05")) {
+            val seg = s.getValue(id)
+            assertEquals(Metric.FOG_ON_RATE, seg.reasons.single().metric, seg.gist)
+            assertEquals(Deviation.SOME, seg.deviation)
+        }
+        // The camera's hard braking stays with the camera: the segment around it saw none.
+        assertEquals(0.0, s.getValue("SY60E-S03").metrics[Metric.HARD_BRAKE_RATE])
 
         val b = Briefing.build(anchorSet.anchors, s.values.toList())
         assertEquals("SY60E-T08", b.headline!!.anchor.id)
         assertEquals(3, b.labeled.size)
+    }
+
+    @Test fun `cars stopping on open road light up that segment and nothing else`() {
+        val (knots, s) = run("stopped-cars")
+        assertEquals(9 * anchorSet.anchors.size, knots.size)
+        val different = s.values.filter { it.deviation != Deviation.NONE }
+        assertEquals(listOf("SY60E-S06"), different.map { it.anchor.id })
+        val seg = different.single()
+        assertEquals(Deviation.HIGH, seg.deviation)
+        assertEquals(setOf(Metric.HARD_BRAKE_RATE, Metric.STOP_RATE), seg.reasons.map { it.metric }.toSet(), seg.gist)
+        assertEquals(4.0 / 9, seg.metrics.getValue(Metric.STOP_RATE), 0.001)
+        // Stopping is further above its usual (2%) than hard braking (3%), so it leads.
+        assertEquals(Metric.STOP_RATE, seg.reasons.first().metric)
+        assertEquals("26.0–27.3 km, 최근 1시간 9대 중 44%가 멈춤 (평소 2%).", seg.gist)
     }
 
     @Test fun `rain over the whole road is reported as context, never as a difference`() {
@@ -81,9 +106,36 @@ class DemoRouteTest {
         val tunnel = s.getValue("남설악터널")
         assertEquals(Deviation.HIGH, tunnel.deviation, tunnel.gist)
         assertEquals(Metric.FOG_TURNED_ON_RATE, tunnel.reasons.first().metric)
-        val camera = s.values.single { it.anchor.type == kr.tedin.maptalkdrive.ribbon.spec.AnchorType.CAMERA }
+        val camera = s.values.single { it.anchor.type == AnchorType.CAMERA }
         assertEquals(Metric.HARD_BRAKE_RATE, camera.reasons.firstOrNull()?.metric, camera.gist)
+        // Between facilities: the hairpin segment on the pass, and the two segments past the tunnel where the fog stays.
         val different = s.values.filter { it.deviation != Deviation.NONE }.map { it.anchor.id }.sorted()
-        assertEquals(listOf("N44E-C01", "N44E-T01"), different)
+        assertEquals(listOf("N44E-C01", "N44E-S17", "N44E-S25", "N44E-S26", "N44E-T01"), different)
+        val hairpin = s.getValue("N44E-S17")
+        assertEquals(Deviation.HIGH, hairpin.deviation, hairpin.gist)
+        assertEquals(Metric.HARD_BRAKE_RATE, hairpin.reasons.first().metric)
+        assertTrue(set.anchors.single { it.id == "N44E-S17" }.let { 32_425 in it.alongM..it.endAlongM }, "the segment holds the 32.4 km hairpin")
+        for (id in listOf("N44E-S25", "N44E-S26")) assertEquals(Metric.FOG_ON_RATE, s.getValue(id).reasons.first().metric)
+        // The fog past the tunnel is labeled once; the other labels go to the hairpin and the camera.
+        val b = Briefing.build(set.anchors, s.values.toList())
+        assertEquals(listOf("N44E-S17", "N44E-C01", "N44E-T01"), b.labeled.map { it.anchor.id })
+        val cameraAt = set.anchors.single { it.id == camera.anchor.id }.alongM
+        val aroundCamera = set.anchors.single { it.type == AnchorType.SEGMENT && cameraAt in it.alongM..it.endAlongM }
+        assertEquals(0.0, s.getValue(aroundCamera.id).metrics[Metric.HARD_BRAKE_RATE], "the camera's braking stays with the camera")
+    }
+
+    @Test fun `segments tile the open road between tunnels without gaps or overlaps`() {
+        for (id in listOf("SY60E", "N44E")) {
+            val set = anchorsOf(id)
+            val segs = set.anchors.filter { it.type == AnchorType.SEGMENT }.sortedBy { it.alongM }
+            val tunnels = set.anchors.filter { it.type == AnchorType.TUNNEL }
+            assertTrue(segs.isNotEmpty())
+            for (sg in segs) {
+                assertTrue(sg.endAlongM - sg.alongM in 500..3000, sg.toString())
+                assertTrue(tunnels.none { t -> sg.alongM < t.endAlongM && sg.endAlongM > t.alongM }, "$sg overlaps a tunnel")
+                assertEquals(0, sg.zoneBeforeM); assertEquals(0, sg.zoneAfterM)
+            }
+            segs.zipWithNext().forEach { (a, b) -> assertTrue(b.alongM >= a.endAlongM, "$a / $b") }
+        }
     }
 }

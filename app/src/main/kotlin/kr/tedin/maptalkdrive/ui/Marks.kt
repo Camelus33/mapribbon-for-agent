@@ -109,6 +109,14 @@ fun DrawScope.pictogram(type: AnchorType, c: Offset, s: Float, ink: Color) {
             drawLine(ink, Offset(c.x - s * 0.4f, c.y + s * 0.42f), Offset(c.x - s * 0.4f, c.y - s * 0.3f), w, StrokeCap.Round)
             drawLine(ink, Offset(c.x - s * 0.4f, c.y - s * 0.1f), Offset(c.x + s * 0.45f, c.y - s * 0.1f), w, StrokeCap.Round)
         }
+        AnchorType.SEGMENT -> {
+            // A stretch of open road in perspective: two edges narrowing to the horizon, a dashed centre line.
+            drawLine(ink, Offset(c.x - s * 0.42f, c.y + s * 0.42f), Offset(c.x - s * 0.12f, c.y - s * 0.42f), w, StrokeCap.Round)
+            drawLine(ink, Offset(c.x + s * 0.42f, c.y + s * 0.42f), Offset(c.x + s * 0.12f, c.y - s * 0.42f), w, StrokeCap.Round)
+            for ((y0, y1) in listOf(0.42f to 0.2f, 0.04f to -0.12f, -0.26f to -0.36f)) {
+                drawLine(ink, Offset(c.x, c.y + s * y0), Offset(c.x, c.y + s * y1), w * 0.8f, StrokeCap.Round)
+            }
+        }
     }
 }
 

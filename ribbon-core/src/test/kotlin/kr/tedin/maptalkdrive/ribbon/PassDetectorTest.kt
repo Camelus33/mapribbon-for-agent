@@ -89,4 +89,31 @@ class PassDetectorTest {
         val far = Road.anchor("FAR", AnchorType.CAMERA, 19_990, before = 400, after = 100)
         assertNull(run(Drive(toM = 15_000.0), far).firstOrNull())
     }
+
+    private val segment = Road.anchor("S", AnchorType.SEGMENT, 12_000, endAlongM = 14_000, before = 0, after = 0)
+    private val camera = Road.anchor("C", AnchorType.CAMERA, 13_500, before = 300, after = 100)
+
+    @Test fun `a segment knot covers the stretch with its halves, its mean speed and a stop on it`() {
+        val k = run(Drive(
+            speedAt = { if (it in 12_880.0..12_910.0) 2.0 else if (it < 13_000) 100.0 else 80.0 },
+            brake = { it in 12_850.0..12_910.0 },
+            fog = { it >= 13_000 },
+        ), segment).single()
+        assertEquals("S", k.anchorId)
+        assertTrue(k.hardBrake, "100 to 2 km/h with the brake on is hard braking")
+        assertTrue(k.stoppedS > 0, "standing at 2 km/h is a stop")
+        assertFalse(k.fogBefore); assertTrue(k.fogAfter, "fog lights on in the second half only")
+        // Time-weighted, like distance over time: the minute spent standing pulls it well below the cruising speeds.
+        assertTrue(k.speedAtKmh!! in 40.0..80.0, "mean speed over the segment: ${k.speedAtKmh}")
+    }
+
+    @Test fun `braking inside a facility's zone counts for the facility, not for the segment around it`() {
+        val speed: (Double) -> Double = { if (it < 13_400) 90.0 else 60.0 }
+        val ks = run(Drive(speedAt = speed, brake = { it in 13_380.0..13_450.0 }), segment, camera).associateBy { it.anchorId }
+        assertTrue(ks.getValue("C").hardBrake)
+        assertFalse(ks.getValue("S").hardBrake)
+        val outside = run(Drive(speedAt = { if (it < 12_400) 90.0 else 60.0 }, brake = { it in 12_380.0..12_450.0 }), segment, camera).associateBy { it.anchorId }
+        assertTrue(outside.getValue("S").hardBrake)
+        assertFalse(outside.getValue("C").hardBrake)
+    }
 }

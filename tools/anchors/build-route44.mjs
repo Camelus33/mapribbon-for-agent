@@ -9,6 +9,7 @@ import { fileURLToPath } from 'node:url';
 import { overpass } from './lib/overpass.mjs';
 import { haversine, cumulative, nearestOnPath } from './lib/geo.mjs';
 import { english } from './lib/english.mjs';
+import { segments, positionOf } from './lib/segments.mjs';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const ASSETS = join(HERE, '../../app/src/main/assets/routes/N44E');
@@ -96,13 +97,15 @@ async function main() {
     }
   }
 
+  // Segments of open road between the facilities, so events between two facilities have a place too.
+  anchors.push(...segments(anchors, lengthM).map(s => ({ ...s, dir: ROUTE.dir })));
   anchors.sort((a, b) => a.alongM - b.alongM);
   const counters = {};
   for (const a of anchors) {
     const k = a.type[0];
     counters[k] = (counters[k] ?? 0) + 1;
     a.id = `${ROUTE.id}-${k}${String(counters[k]).padStart(2, '0')}`;
-    const p = pointAt(path, cum, a.alongM);
+    const p = pointAt(path, cum, positionOf(a));
     a.lon = +p[0].toFixed(6); a.lat = +p[1].toFixed(6);
   }
 

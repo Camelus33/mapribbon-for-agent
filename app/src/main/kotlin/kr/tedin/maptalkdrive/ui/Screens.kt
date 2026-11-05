@@ -8,6 +8,8 @@ import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -67,6 +69,7 @@ import kr.tedin.maptalkdrive.ribbon.brief.Briefing
 import kr.tedin.maptalkdrive.ribbon.brief.BriefingItem
 import kr.tedin.maptalkdrive.ribbon.detect.TurnSignal
 import kr.tedin.maptalkdrive.ribbon.geo.CurveClass
+import kr.tedin.maptalkdrive.ribbon.spec.AnchorType
 import kr.tedin.maptalkdrive.ribbon.spec.Deviation
 import kr.tedin.maptalkdrive.ribbon.spec.Knot
 import kr.tedin.maptalkdrive.ribbon.spec.RibbonState
@@ -259,7 +262,8 @@ private fun PlaceCard(item: BriefingItem, w: Words, t: Tokens, ahead: Pair<Strin
             }
             Text(w.meaning(item), style = Type.headline, color = t.ink, maxLines = 1, overflow = TextOverflow.Ellipsis)
             Text(
-                if (ahead == null) "${w.place(item)} · ${Words.at(item.pointM)}" else w.place(item),
+                // A segment's name already is its kilometres.
+                if (ahead == null && item.anchor.type != AnchorType.SEGMENT) "${w.place(item)} · ${Words.at(item.pointM)}" else w.place(item),
                 style = Type.context.copy(fontFeatureSettings = "tnum"), color = t.ink2, maxLines = 1, overflow = TextOverflow.Ellipsis,
             )
             Spacer(Modifier.height(12.dp))
@@ -390,10 +394,12 @@ private fun Legend(b: Briefing, curves: Set<CurveClass>, hairpins: Boolean, w: W
     val marks = buildList {
         if (b.items.any { it.different && it.state.deviation == Deviation.HIGH }) add(LegendKind.HIGH to w.str(R.string.legend_high))
         if (b.items.any { it.different && it.state.deviation == Deviation.SOME }) add(LegendKind.SOME to w.str(R.string.legend_some))
-        if (b.items.any { it.state.status == RibbonStatus.PUBLISHED && !it.different }) add(LegendKind.USUAL to w.str(R.string.legend_usual))
+        // The usual tick is drawn for facilities only; a usual segment leaves the road as it is.
+        if (b.items.any { it.state.status == RibbonStatus.PUBLISHED && !it.different && it.anchor.type != AnchorType.SEGMENT }) add(LegendKind.USUAL to w.str(R.string.legend_usual))
         if (b.notEnoughCount > 0) add(LegendKind.NOT_ENOUGH to w.str(R.string.legend_not_enough))
     }
-    val issues = b.items.filter { it.different }.mapNotNull { Words.top(it)?.metric }.distinct()
+    // One entry per icon: fog lights switched on (at a tunnel) and on (on a segment) share the icon and the words.
+    val issues = b.items.filter { it.different }.mapNotNull { Words.top(it)?.metric }.distinctBy { w.issue(it) }
     Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
         LegendRow(t) { for ((k, label) in road) LegendEntry(label, t) { LegendSwatch(k, t) } }
         if (marks.isNotEmpty()) LegendRow(t) { for ((k, label) in marks) LegendEntry(label, t) { LegendSwatch(k, t) } }
@@ -403,9 +409,13 @@ private fun Legend(b: Briefing, curves: Set<CurveClass>, hairpins: Boolean, w: W
     }
 }
 
+/** One legend row, wrapping instead of running out over the map. */
+@OptIn(ExperimentalLayoutApi::class)
 @Composable
 private fun LegendRow(t: Tokens, content: @Composable () -> Unit) =
-    Row(horizontalArrangement = Arrangement.spacedBy(24.dp), verticalAlignment = Alignment.CenterVertically) { content() }
+    FlowRow(Modifier.widthIn(max = LegendWidth), horizontalArrangement = Arrangement.spacedBy(24.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) { content() }
+
+private val LegendWidth = 680.dp
 
 @Composable
 private fun LegendEntry(label: String, t: Tokens, swatch: @Composable () -> Unit) {

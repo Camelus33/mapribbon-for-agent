@@ -34,10 +34,14 @@ class Words(private val r: Resources) {
         return parts.first() to parts.last()
     }
 
-    /** The facility as a driver names it. Tunnel issues are about the exit; virtual cameras are just cameras here. */
+    /**
+     * The place as a driver names it. Tunnel issues are about the exit; virtual cameras are just cameras here; a segment
+     * is its stretch of kilometres ("26.0–27.3 km 구간").
+     */
     fun place(item: BriefingItem): String = when (item.anchor.type) {
         AnchorType.TUNNEL -> r.getString(R.string.tunnel_exit, name(item.anchor))
         AnchorType.CAMERA -> r.getString(R.string.speed_camera)
+        AnchorType.SEGMENT -> r.getString(R.string.segment_place, name(item.anchor))
         else -> name(item.anchor)
     }
 
@@ -45,7 +49,7 @@ class Words(private val r: Resources) {
     fun issue(metric: String?): String = r.getString(
         when (metric) {
             Metric.WIPER_TURNED_ON_RATE, Metric.WIPER_ON_RATE -> R.string.issue_wiper
-            Metric.FOG_TURNED_ON_RATE -> R.string.issue_fog
+            Metric.FOG_TURNED_ON_RATE, Metric.FOG_ON_RATE -> R.string.issue_fog
             Metric.LATE_LANE_CHANGE_RATE -> R.string.issue_late_merge
             Metric.HARD_BRAKE_RATE -> R.string.issue_hard_brake
             Metric.STOP_RATE -> R.string.issue_stop
@@ -62,7 +66,7 @@ class Words(private val r: Resources) {
     fun meaning(item: BriefingItem): String = r.getString(
         when (top(item)?.metric) {
             Metric.WIPER_TURNED_ON_RATE, Metric.WIPER_ON_RATE -> R.string.meaning_rain
-            Metric.FOG_TURNED_ON_RATE -> R.string.meaning_fog
+            Metric.FOG_TURNED_ON_RATE, Metric.FOG_ON_RATE -> R.string.meaning_fog
             Metric.HARD_BRAKE_RATE -> if (item.anchor.type == AnchorType.CAMERA) R.string.meaning_camera_brake else R.string.meaning_holdup
             Metric.LATE_LANE_CHANGE_RATE -> R.string.meaning_exit_busy
             Metric.STOP_RATE -> R.string.meaning_queue

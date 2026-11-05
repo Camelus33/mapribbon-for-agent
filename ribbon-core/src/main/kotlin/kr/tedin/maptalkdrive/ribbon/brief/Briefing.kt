@@ -9,8 +9,12 @@ import kr.tedin.maptalkdrive.ribbon.spec.RibbonStatus
 data class BriefingItem(val anchor: Anchor, val state: RibbonState) {
     val different: Boolean get() = state.status == RibbonStatus.PUBLISHED && state.deviation != Deviation.NONE
 
-    /** The point a driver should mind: a tunnel's exit (where the open road comes back), any other facility itself. */
-    val pointM: Int get() = if (anchor.type == AnchorType.TUNNEL) anchor.endAlongM else anchor.alongM
+    /** The point a driver should mind: a tunnel's exit (where the open road comes back), a segment's middle, any other facility itself. */
+    val pointM: Int get() = when (anchor.type) {
+        AnchorType.TUNNEL -> anchor.endAlongM
+        AnchorType.SEGMENT -> (anchor.alongM + anchor.endAlongM) / 2
+        else -> anchor.alongM
+    }
 }
 
 /**
@@ -41,8 +45,26 @@ data class Briefing(
                     .thenByDescending { strength(it.state) }
                     .thenBy { it.anchor.alongM },
             )
-            val labeled = ranked.take(MAX_LABELS).sortedBy { it.anchor.alongM }
-            return Briefing(items, ranked.firstOrNull(), labeled)
+            // Labels go to different things: a place that says the same as a labeled one close by (fog at a tunnel exit
+            // and on the segments after it) leaves its label to the next thing down the ranking.
+            val labeled = mutableListOf<BriefingItem>()
+            for (item in ranked) {
+                if (labeled.size == MAX_LABELS) break
+                if (labeled.none { family(it) == family(item) && kotlin.math.abs(it.pointM - item.pointM) <= SAME_THING_WITHIN_M }) labeled += item
+            }
+            return Briefing(items, ranked.firstOrNull(), labeled.sortedBy { it.anchor.alongM })
+        }
+
+        const val SAME_THING_WITHIN_M = 3_000
+
+        /** What kind of thing a place's top reason is: fog lights on or switched on are both fog. */
+        private fun family(item: BriefingItem): String {
+            val m = item.state.reasons.firstOrNull()?.metric ?: return ""
+            return when {
+                m.startsWith("fog") -> "fog"
+                m.startsWith("wiper") -> "wiper"
+                else -> m
+            }
         }
 
         /** How far the top reason is above its reference, in units of the "high" threshold (rates 0.35, speeds 20 km/h). */

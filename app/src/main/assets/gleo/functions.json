@@ -5,7 +5,7 @@
   "functions": [
     {
       "name": "get_route_ribbons",
-      "description": "Ribbons on the current route, one per road facility (tunnel, junction, toll gate, camera) in driving order. Each says whether the last 15 to 180 minutes of cars behaved differently from usual there (deviation NONE, SOME, HIGH), why (metric, value, usual value), how many cars that is based on, and when the most recent of them passed (window.lastMs, rounded down to 5 minutes). Facilities with fewer than three cars are NOT_ENOUGH and must not be described as usual.",
+      "description": "Ribbons on the current route in driving order: one per road facility (tunnel, junction, toll gate, camera) and one per SEGMENT, a stretch of about 2 km of open road between them (hard braking, stops, wipers, fog lights on that stretch). Each says whether the last 15 to 180 minutes of cars behaved differently from usual there (deviation NONE, SOME, HIGH), why (metric, value, usual value), how many cars that is based on, and when the most recent of them passed (window.lastMs, rounded down to 5 minutes). Places with fewer than three cars are NOT_ENOUGH and must not be described as usual.",
       "parameters": {
         "type": "object",
         "properties": {
@@ -24,7 +24,7 @@
     },
     {
       "name": "get_next_unusual",
-      "description": "The next facility ahead on the route where cars recently behaved differently from usual, with its distance from the given position. Returns no row when nothing ahead is different.",
+      "description": "The next facility or segment ahead on the route where cars recently behaved differently from usual, with its distance from the given position. Returns no row when nothing ahead is different.",
       "parameters": {
         "type": "object",
         "properties": {
@@ -51,7 +51,7 @@
     },
     {
       "name": "get_route_shape",
-      "description": "How the route bends, cut into stretches of STRAIGHT (radius 2 km or more), CURVE (500 m to 2 km) and SHARP (under 500 m, slow down from 100 km/h) with the tightest radius of each; the hairpins inside them (where the heading turns 120 degrees or more within 200 m), each with its position, radius and turn; plus the facilities the ribbons hang on.",
+      "description": "How the route bends, cut into stretches of STRAIGHT (radius 2 km or more), CURVE (500 m to 2 km) and SHARP (under 500 m, slow down from 100 km/h) with the tightest radius of each; the hairpins inside them (where the heading turns 120 degrees or more within 200 m), each with its position, radius and turn; plus the anchors the ribbons hang on (facilities and segments).",
       "parameters": {
         "type": "object",
         "properties": {

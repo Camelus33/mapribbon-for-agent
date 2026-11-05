@@ -97,6 +97,27 @@ class RibbonEngineTest {
         assertTrue(everywhere.all { it.metrics[Metric.WIPER_ON_RATE] == 1.0 }, "the comparison saw the rain")
     }
 
+    @Test fun `on segments rain on one stretch is a difference, rain on every stretch is not, and facilities are not their neighbours`() {
+        val segs = (0 until 6).map { Road.anchor("S$it", AnchorType.SEGMENT, it * 2_000, endAlongM = it * 2_000 + 2_000, before = 0, after = 0) }
+        val usualSeg = Baseline(values = segs.associate { a -> a.id to (0..23).associate { h -> h.toString() to mapOf(Metric.WIPER_ON_RATE to 0.1) } })
+        fun drive(wet: (String) -> Boolean) = (1..9).flatMap { i ->
+            segs.map { a -> knot(a.id, "v$i", now - i * min) { copy(wiperBefore = wet(a.id) && i <= 6, wiperAfter = wet(a.id) && i <= 6) } }
+        }
+        val shower = RibbonEngine(segs, usualSeg).states(drive { it == "S2" }, now).associateBy { it.anchor.id }
+        assertEquals(Deviation.HIGH, shower.getValue("S2").deviation)
+        assertEquals(Metric.WIPER_ON_RATE, shower.getValue("S2").reasons.single().metric)
+        assertTrue(shower.values.filter { it.anchor.id != "S2" }.all { it.deviation == Deviation.NONE })
+
+        val everywhere = RibbonEngine(segs, usualSeg).states(drive { true }, now)
+        assertTrue(everywhere.all { it.deviation == Deviation.NONE }, everywhere.joinToString { "${it.anchor.id}=${it.deviation}" })
+
+        // A wet tunnel next door does not make a dry segment look dry by comparison, nor a wet one look usual.
+        val withTunnel = RibbonEngine(segs + Road.anchor("T", AnchorType.TUNNEL, 13_000, endAlongM = 14_000), usualSeg)
+            .states(drive { it == "S2" } + (1..9).map { i -> knot("T", "v$i", now - i * min) { copy(wiperBefore = true, wiperAfter = true) } }, now)
+            .associateBy { it.anchor.id }
+        assertEquals(Deviation.HIGH, withTunnel.getValue("S2").deviation)
+    }
+
     @Test fun `without neighbours a high value is judged against the usual value alone`() {
         val alone = RibbonEngine(listOf(mid), usual).states(localRain().filter { it.anchorId == "M" }, now).single()
         assertEquals(Deviation.HIGH, alone.deviation)

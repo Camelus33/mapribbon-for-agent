@@ -2,8 +2,9 @@
 //   app/src/main/assets/scenarios/local-weather.json    SY60E: weather turns at the Inje-Yangyang tunnel exit, late lane
 //                                                       changes before Seoyangyang IC, hard braking at a virtual camera
 //   app/src/main/assets/scenarios/rain-everywhere.json  SY60E control: rain on the whole road, nothing local
-//   app/src/main/assets/scenarios/hangyeryeong-fog.json N44E: fog past the Namseorak tunnel, hard braking at a camera on
-//                                                       the way down from the pass
+//   app/src/main/assets/scenarios/stopped-cars.json     SY60E: cars stop suddenly on open road, between facilities
+//   app/src/main/assets/scenarios/hangyeryeong-fog.json N44E: hard braking at a hairpin, fog past the Namseorak tunnel,
+//                                                       hard braking at a camera on the way down from the pass
 //   app/src/main/assets/baseline.json                   usual values for every anchor of both routes (generated, labelled
 //                                                       as simulation in the app)
 // Usage: node tools/scenarios/make-scenarios.mjs   (after tools/anchors/build-anchors.mjs and build-route44.mjs)
@@ -73,13 +74,17 @@ const pass = {
   camera: n44.anchors.find(a => a.type === 'CAMERA'),
 };
 if (!pass.camera) throw new Error('no camera on route 44');
+// A switchback on the way down from the summit (Curvature.hairpins puts one at 32.4 km), well inside one segment.
+const hairpinSegment = segmentAround(n44.anchors, 32_400);
+pass.hairpinAt = Math.round((hairpinSegment.alongM + hairpinSegment.endAlongM) / 2);
 const hangyeryeongFog = {
   spec: 'maptalk.scenario/1',
   id: 'hangyeryeong-fog',
   routeId: 'N44E',
-  title: '한계령: 남설악터널 너머 안개, 내리막 카메라 앞 급제동',
-  titleEn: 'Hangyeryeong: fog past the Namseorak Tunnel, hard braking at the camera downhill',
-  description: `고개를 넘은 뒤 9대 중 6대가 ${pass.tunnel.name} 출구에서 안개등을 켜고, 3대가 내리막 ${pass.camera.name} 앞에서 급제동한다.`,
+  title: '한계령: 헤어핀 급제동, 남설악터널 너머 안개, 카메라 앞 급제동',
+  titleEn: 'Hangyeryeong: hard braking at a hairpin, fog past the Namseorak Tunnel, braking at the camera',
+  description: `고개를 넘어 내려가는 ${hairpinSegment.name} 구간 헤어핀에서 9대 중 4대가 급제동한다. ` +
+    `6대가 ${pass.tunnel.name} 출구에서 안개등을 켜고, 3대가 내리막 ${pass.camera.name} 앞에서 급제동한다.`,
   vehicles: Array.from({ length: N }, (_, i) => {
     const segments = [];
     if (i < 6) segments.push({ fromM: pass.tunnel.endAlongM + 30, toM: pass.tunnel.endAlongM + 2500, fog: true });
@@ -87,24 +92,63 @@ const hangyeryeongFog = {
       segments.push({ fromM: pass.camera.alongM - 140, toM: pass.camera.alongM + 60, kmh: 32 });
       segments.push({ fromM: pass.camera.alongM - 150, toM: pass.camera.alongM - 60, brake: true });
     }
+    // Between facilities: on the pass, four cars brake hard at a hairpin (no facility there, only a segment).
+    if (i % 2 === 1) {
+      segments.push({ fromM: pass.hairpinAt - 100, toM: pass.hairpinAt + 100, kmh: 25 });
+      segments.push({ fromM: pass.hairpinAt - 110, toM: pass.hairpinAt - 20, brake: true });
+    }
     return { id: `sim-${i + 1}`, startMinutesAgo: 70 + i * 3, kmh: 56 + (i % 4) * 2, widthClass: widths[i], segments };
   }),
 };
+
+// The expressway between facilities: four of nine cars stop for a while in the middle of the open stretch past
+// Seomyeon 3 tunnel, braking hard as they do; the rest drive on. Nothing at any facility.
+const stopSegment = segmentAround(anchors, 26_600);
+const stopAt = Math.round((stopSegment.alongM + stopSegment.endAlongM) / 2);
+const stoppedCars = {
+  spec: 'maptalk.scenario/1',
+  id: 'stopped-cars',
+  routeId: 'SY60E',
+  title: `${stopSegment.name} 구간: 갑자기 멈춘 차들`,
+  titleEn: `${stopSegment.nameEn}: cars stopping suddenly`,
+  description: `시설물이 없는 ${stopSegment.name} 구간 한가운데서 9대 중 4대가 급제동하고 잠시 멈춘다. 나머지는 그대로 지나간다.`,
+  vehicles: Array.from({ length: N }, (_, i) => {
+    const segments = [];
+    if (i % 2 === 0 && i < 8) {
+      segments.push({ fromM: stopAt - 30, toM: stopAt + 5, kmh: 2 }); // wider than one second of driving, so every car lands in it
+      segments.push({ fromM: stopAt - 60, toM: stopAt + 5, brake: true });
+    }
+    return { id: `sim-${i + 1}`, startMinutesAgo: startMinutesAgo(i), kmh: 92 + (i % 4) * 2, widthClass: widths[i], segments };
+  }),
+};
+
+/** The segment anchor whose stretch holds `alongM`, so a scenario event sits inside one segment, not across two. */
+function segmentAround(list, alongM) {
+  const s = list.find(a => a.type === 'SEGMENT' && a.alongM <= alongM && a.endAlongM > alongM);
+  if (!s) throw new Error(`no segment at ${alongM} m`);
+  for (const f of list.filter(a => a.type !== 'SEGMENT')) {
+    if (alongM >= f.alongM - f.zoneBeforeM && alongM <= f.endAlongM + f.zoneAfterM) throw new Error(`${alongM} m is inside ${f.id}'s zone`);
+  }
+  return s;
+}
 
 const usual = {
   hardBrakeRate: 0.03, lateLaneChangeRate: 0.08, wiperTurnedOnRate: 0.03, fogTurnedOnRate: 0.02,
   wiperOnRate: 0.1, entryDecelKmh: 4, stopRate: 0.05,
 };
+// Open road: fewer stops than at a toll gate, fog lights rarer than wipers.
+const usualSegment = { hardBrakeRate: 0.03, stopRate: 0.02, wiperOnRate: 0.1, fogOnRate: 0.03 };
 const baseline = {
   spec: 'maptalk.baseline/1',
   weeks: 4,
   simulated: true,
-  values: Object.fromEntries([...anchors, ...n44.anchors].map(a => [a.id, Object.fromEntries(Array.from({ length: 24 }, (_, h) => [String(h), usual]))])),
+  values: Object.fromEntries([...anchors, ...n44.anchors].map(a => [a.id, Object.fromEntries(Array.from({ length: 24 }, (_, h) => [String(h), a.type === 'SEGMENT' ? usualSegment : usual]))])),
 };
 
 await mkdir(join(ASSETS, 'scenarios'), { recursive: true });
 await writeFile(join(ASSETS, 'scenarios/local-weather.json'), JSON.stringify(localWeather, null, 2) + '\n');
 await writeFile(join(ASSETS, 'scenarios/rain-everywhere.json'), JSON.stringify(rainEverywhere, null, 2) + '\n');
 await writeFile(join(ASSETS, 'scenarios/hangyeryeong-fog.json'), JSON.stringify(hangyeryeongFog, null, 2) + '\n');
+await writeFile(join(ASSETS, 'scenarios/stopped-cars.json'), JSON.stringify(stoppedCars, null, 2) + '\n');
 await writeFile(join(ASSETS, 'baseline.json'), JSON.stringify(baseline) + '\n');
 console.log(`scenarios: local-weather (${tunnel.id} exit ${tunnel.endAlongM} m, ${ic.id} ${ic.alongM} m, ${camera.id} ${camera.alongM} m), rain-everywhere, hangyeryeong-fog (${pass.tunnel.id} exit ${pass.tunnel.endAlongM} m, ${pass.camera.id} ${pass.camera.alongM} m); baseline for ${anchors.length + n44.anchors.length} anchors`);

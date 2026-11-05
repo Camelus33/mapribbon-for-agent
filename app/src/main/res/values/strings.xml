@@ -9,6 +9,7 @@
     <string name="preview_stop">Stop</string>
     <string name="tunnel_exit">%1$s exit</string>
     <string name="speed_camera">Speed camera</string>
+    <string name="segment_place">%1$s</string>
     <plurals name="all_usual">
         <item quantity="one">The one place judged is as usual</item>
         <item quantity="other">All %1$d places judged are as usual</item>

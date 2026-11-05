@@ -24,6 +24,23 @@
       "nameEn": "Sangnam 7 Tunnel"
     },
     {
+      "id": "SY60E-S01",
+      "type": "SEGMENT",
+      "name": "2.7–3.7 km",
+      "dir": "E",
+      "alongM": 2667,
+      "endAlongM": 3725,
+      "zoneBeforeM": 0,
+      "zoneAfterM": 0,
+      "lat": 37.934928,
+      "lon": 128.315363,
+      "source": "route",
+      "sourceRef": null,
+      "virtual": false,
+      "lengthM": 1058,
+      "nameEn": "km 2.7–3.7"
+    },
+    {
       "id": "SY60E-T02",
       "type": "TUNNEL",
       "name": "기린1터널",
@@ -56,6 +73,23 @@
       "virtual": false,
       "lengthM": 387,
       "nameEn": "Girin 2 Tunnel"
+    },
+    {
+      "id": "SY60E-S02",
+      "type": "SEGMENT",
+      "name": "4.3–4.9 km",
+      "dir": "E",
+      "alongM": 4294,
+      "endAlongM": 4904,
+      "zoneBeforeM": 0,
+      "zoneAfterM": 0,
+      "lat": 37.939702,
+      "lon": 128.329789,
+      "source": "route",
+      "sourceRef": null,
+      "virtual": false,
+      "lengthM": 610,
+      "nameEn": "km 4.3–4.9"
     },
     {
       "id": "SY60E-T04",
@@ -109,6 +143,23 @@
       "nameEn": "Girin 5 Tunnel"
     },
     {
+      "id": "SY60E-S03",
+      "type": "SEGMENT",
+      "name": "7.3–9.3 km",
+      "dir": "E",
+      "alongM": 7313,
+      "endAlongM": 9259,
+      "zoneBeforeM": 0,
+      "zoneAfterM": 0,
+      "lat": 37.95059,
+      "lon": 128.369198,
+      "source": "route",
+      "sourceRef": null,
+      "virtual": false,
+      "lengthM": 1946,
+      "nameEn": "km 7.3–9.3"
+    },
+    {
       "id": "SY60E-C01",
       "type": "CAMERA",
       "name": "가상 단속카메라",
@@ -159,6 +210,23 @@
       "nameEn": "Inje-Yangyang Tunnel"
     },
     {
+      "id": "SY60E-S04",
+      "type": "SEGMENT",
+      "name": "23.0–23.6 km",
+      "dir": "E",
+      "alongM": 22985,
+      "endAlongM": 23562,
+      "zoneBeforeM": 0,
+      "zoneAfterM": 0,
+      "lat": 37.983892,
+      "lon": 128.524795,
+      "source": "route",
+      "sourceRef": null,
+      "virtual": false,
+      "lengthM": 577,
+      "nameEn": "km 23.0–23.6"
+    },
+    {
       "id": "SY60E-T09",
       "type": "TUNNEL",
       "name": "서면2터널",
@@ -174,6 +242,23 @@
       "virtual": false,
       "lengthM": 249,
       "nameEn": "Seomyeon 2 Tunnel"
+    },
+    {
+      "id": "SY60E-S05",
+      "type": "SEGMENT",
+      "name": "23.8–25.8 km",
+      "dir": "E",
+      "alongM": 23811,
+      "endAlongM": 25790,
+      "zoneBeforeM": 0,
+      "zoneAfterM": 0,
+      "lat": 37.995698,
+      "lon": 128.533431,
+      "source": "route",
+      "sourceRef": null,
+      "virtual": false,
+      "lengthM": 1979,
+      "nameEn": "km 23.8–25.8"
     },
     {
       "id": "SY60E-C02",
@@ -225,6 +310,23 @@
       "nameEn": "Seomyeon 3 Tunnel"
     },
     {
+      "id": "SY60E-S06",
+      "type": "SEGMENT",
+      "name": "26.0–27.3 km",
+      "dir": "E",
+      "alongM": 25983,
+      "endAlongM": 27298,
+      "zoneBeforeM": 0,
+      "zoneAfterM": 0,
+      "lat": 38.010895,
+      "lon": 128.541305,
+      "source": "route",
+      "sourceRef": null,
+      "virtual": false,
+      "lengthM": 1315,
+      "nameEn": "km 26.0–27.3"
+    },
+    {
       "id": "SY60E-T11",
       "type": "TUNNEL",
       "name": "서면4터널",
@@ -259,6 +361,23 @@
       "nameEn": "Seomyeon 5 Tunnel"
     },
     {
+      "id": "SY60E-S07",
+      "type": "SEGMENT",
+      "name": "29.0–29.5 km",
+      "dir": "E",
+      "alongM": 28987,
+      "endAlongM": 29520,
+      "zoneBeforeM": 0,
+      "zoneAfterM": 0,
+      "lat": 38.028927,
+      "lon": 128.558889,
+      "source": "route",
+      "sourceRef": null,
+      "virtual": false,
+      "lengthM": 533,
+      "nameEn": "km 29.0–29.5"
+    },
+    {
       "id": "SY60E-T13",
       "type": "TUNNEL",
       "name": "서면6터널",
@@ -291,6 +410,23 @@
       "virtual": false,
       "lengthM": 754,
       "nameEn": "Seomyeon 7 Tunnel"
+    },
+    {
+      "id": "SY60E-S08",
+      "type": "SEGMENT",
+      "name": "33.4–34.5 km",
+      "dir": "E",
+      "alongM": 33379,
+      "endAlongM": 34508,
+      "zoneBeforeM": 0,
+      "zoneAfterM": 0,
+      "lat": 38.059375,
+      "lon": 128.592662,
+      "source": "route",
+      "sourceRef": null,
+      "virtual": false,
+      "lengthM": 1129,
+      "nameEn": "km 33.4–34.5"
     },
     {
       "id": "SY60E-J02",

@@ -3,13 +3,18 @@ package kr.tedin.maptalkdrive.ribbon.spec
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 
-/** Road facilities a ribbon can hang on. Their positions come from public data or OSM, never from users. */
+/**
+ * What a ribbon can hang on. Facilities (tunnel, junction, toll gate, camera) come from public data or OSM, never from
+ * users. A SEGMENT is a stretch of open road between them, about 2 km, cut from the route itself, so what happens
+ * between two facilities has a place too. Segments stop at tunnel mouths: inside a tunnel there is no position.
+ */
 @Serializable
-enum class AnchorType { TUNNEL, JUNCTION, TOLL, CAMERA }
+enum class AnchorType { TUNNEL, JUNCTION, TOLL, CAMERA, SEGMENT }
 
 /**
- * One facility on one carriageway. Positions are meters along the route line. A tunnel spans [alongM, endAlongM];
- * every other type is a point (alongM == endAlongM). Vehicles tie a knot only inside the influence zone.
+ * One anchor on one carriageway. Positions are meters along the route line. A tunnel and a segment span
+ * [alongM, endAlongM]; every other type is a point (alongM == endAlongM). Vehicles tie a knot only inside the influence
+ * zone; a segment's zone is the segment itself.
  */
 @Serializable
 data class Anchor(
@@ -51,6 +56,9 @@ enum class WidthClass { NARROW, MEDIUM, WIDE }
 /**
  * What one vehicle saw while passing one anchor's zone. "Before" is the approach (zone start .. alongM),
  * "after" is the exit side (endAlongM .. zone end). A tunnel's interior has no position fixes and adds nothing here.
+ *
+ * On a segment "before" and "after" are its first and second half, `speedAtKmh` is the mean speed over it, and hard
+ * braking and stops count only outside every facility's zone: those belong to the facility's own knot.
  */
 @Serializable
 data class Knot(
@@ -125,6 +133,8 @@ object Metric {
     const val LATE_LANE_CHANGE_RATE = "lateLaneChangeRate"
     const val WIPER_TURNED_ON_RATE = "wiperTurnedOnRate"
     const val FOG_TURNED_ON_RATE = "fogTurnedOnRate"
+    /** Segments: share of cars with fog lights on anywhere on the segment. */
+    const val FOG_ON_RATE = "fogOnRate"
     const val WIPER_ON_RATE = "wiperOnRate"
     const val STOP_RATE = "stopRate"
     const val ENTRY_DECEL_KMH = "entryDecelKmh"

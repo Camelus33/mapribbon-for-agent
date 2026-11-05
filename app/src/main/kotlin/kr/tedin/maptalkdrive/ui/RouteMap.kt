@@ -117,6 +117,8 @@ fun curveStroke(c: CurveClass, t: Tokens): Pair<Color, Dp> = when (c) {
 
 val TunnelBand = 22.dp
 val HairpinMark = 22.dp
+/** A different segment's band: the status colour, light enough that the road drawn over it stays readable. */
+const val StretchAlpha = 0.45f
 
 /**
  * Parked, before departure: the road from bottom-left to top-right, drawn by how it bends. Tunnels are a quiet band
@@ -155,12 +157,26 @@ fun RouteMap(
             Spacer(
                 Modifier.fillMaxSize().graphicsLayer { compositingStrategy = CompositingStrategy.Offscreen }.drawWithCache {
                     val ring = 2.dp.toPx()
-                    val facilities = briefing.items.map { geo.at(it.pointM.toDouble()).first }
+                    fun pointOf(item: BriefingItem) = geo.at(item.pointM.toDouble()).first
+                    // Facilities always leave a mark. A segment leaves one only when it is different or has too few cars
+                    // (a hollow circle); a usual segment leaves nothing. Hairpins give way to facilities and different
+                    // segments; a hollow segment circle gives way to both, so the road's own shape stays readable.
+                    val facilityPts = briefing.items.filter { it.anchor.type != AnchorType.SEGMENT }.map(::pointOf)
+                    val segmentsDifferent = briefing.items.filter { it.anchor.type == AnchorType.SEGMENT && it.different }
+                    val marked = facilityPts + segmentsDifferent.map(::pointOf)
                     val pinGap = HairpinMark.toPx() + 4.dp.toPx()
                     val pins = mutableListOf<Offset>()
                     for (h in hairpins.sortedBy { it.radiusM }) {
                         val p = geo.at(h.atM).first
-                        if (facilities.none { (it - p).getDistance() < pinGap + 8.dp.toPx() } && pins.none { (it - p).getDistance() < pinGap }) pins += p
+                        if (marked.none { (it - p).getDistance() < pinGap + 8.dp.toPx() } && pins.none { (it - p).getDistance() < pinGap }) pins += p
+                    }
+                    val segmentsShort = briefing.items
+                        .filter { it.anchor.type == AnchorType.SEGMENT && it.state.status == RibbonStatus.NOT_ENOUGH }
+                        .filter { s -> (facilityPts + pins).none { (it - pointOf(s)).getDistance() < 24.dp.toPx() } }
+                        .map { it.anchor.id }.toSet()
+                    // A different segment is a band in its status colour under the road, over the whole stretch.
+                    val bands = segmentsDifferent.map { s ->
+                        (if (s.state.deviation == Deviation.HIGH) t.high else t.some) to geo.path(s.anchor.alongM.toDouble(), s.anchor.endAlongM.toDouble())
                     }
                     val chips = placeChips(briefing, geo, tm, t, reserved, pins, w::count, size.width, size.height)
                     val tickStyle = Type.captionNum.copy(color = t.muted)
@@ -174,6 +190,7 @@ fun RouteMap(
 
                     onDrawBehind {
                         for (p in tunnels) drawPath(p, t.tunnel, style = Stroke(TunnelBand.toPx(), cap = StrokeCap.Butt, join = StrokeJoin.Round))
+                        for ((color, p) in bands) drawPath(p, color.copy(alpha = StretchAlpha), style = Stroke(TunnelBand.toPx(), cap = StrokeCap.Butt, join = StrokeJoin.Round))
                         for ((c, paths) in roads) {
                             val (color, width) = curveStroke(c, t)
                             for (p in paths) drawPath(p, color, style = Stroke(width.toPx(), cap = StrokeCap.Round, join = StrokeJoin.Round))
@@ -195,9 +212,11 @@ fun RouteMap(
 
                         for (item in briefing.items) {
                             val (c, dir) = geo.at(item.pointM.toDouble())
+                            val segment = item.anchor.type == AnchorType.SEGMENT
                             when {
-                                item.state.status == RibbonStatus.NOT_ENOUGH -> notEnoughMark(c, 12.dp.toPx(), 2.dp.toPx(), t, t.surface)
-                                !item.different && item.anchor.type != AnchorType.TUNNEL -> crossTick(c, dir, t)
+                                item.state.status == RibbonStatus.NOT_ENOUGH ->
+                                    if (!segment || item.anchor.id in segmentsShort) notEnoughMark(c, 12.dp.toPx(), 2.dp.toPx(), t, t.surface)
+                                !item.different && !segment && item.anchor.type != AnchorType.TUNNEL -> crossTick(c, dir, t)
                             }
                         }
                         for (item in briefing.items.filter { it.different }) {

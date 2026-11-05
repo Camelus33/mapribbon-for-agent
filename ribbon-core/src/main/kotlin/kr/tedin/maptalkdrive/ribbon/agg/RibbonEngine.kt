@@ -80,6 +80,11 @@ class RibbonEngine(
                 median(ks.mapNotNull { it.speedAtKmh })?.let { m[Metric.SPEED_AT_KMH] = it }
             }
             AnchorType.TOLL -> m[Metric.STOP_RATE] = rate { it.stoppedS > 0 }
+            AnchorType.SEGMENT -> {
+                m[Metric.FOG_ON_RATE] = rate { it.fogBefore || it.fogAfter }
+                m[Metric.STOP_RATE] = rate { it.stoppedS > 0 }
+                median(ks.mapNotNull { it.speedAtKmh })?.let { m[Metric.SPEED_AT_KMH] = it }
+            }
         }
         return m.mapValues { (_, v) -> round3(v) }
     }
@@ -91,12 +96,16 @@ class RibbonEngine(
         }
         val hour = Baseline.hourOf(nowMs)
         val usual = s.metrics.keys.mapNotNull { k -> baseline.get(s.anchor.id, hour, k)?.let { k to it } }.toMap()
+        // Segments are compared with segments and facilities with facilities: a stretch of open road and a tunnel exit
+        // are not the same kind of place.
+        val segment = s.anchor.type == AnchorType.SEGMENT
         val neighbors = all.filter {
             it !== s && it.status == RibbonStatus.PUBLISHED && it.anchor.dir == s.anchor.dir &&
+                (it.anchor.type == AnchorType.SEGMENT) == segment &&
                 abs(it.anchor.alongM - s.anchor.alongM) <= cfg.neighborRadiusM
         }
         val reasons = s.metrics.mapNotNull { (k, v) ->
-            if (k in CONTEXT_ONLY) return@mapNotNull null
+            if (k in contextOnly(s.anchor.type)) return@mapNotNull null
             val near = median(neighbors.mapNotNull { it.metrics[k] })
             val level = levelOf(k, v, usual[k], near)
             if (level == Deviation.NONE) null else Reason(k, v, usual[k], near?.let(::round3), level)
@@ -136,10 +145,13 @@ class RibbonEngine(
 }
 
 /**
- * Published for context but never a "difference": speed is not news, and wiper use is weather, which lights up a whole
- * region at once. A change of weather at one place shows up as wipers switching on there (WIPER_TURNED_ON_RATE).
+ * Published for context but never a "difference": speed is not news (the navigation shows traffic). At a facility wiper
+ * use is weather, which lights up a whole region at once; there a change of weather shows up as wipers switching on
+ * (WIPER_TURNED_ON_RATE). Segments tile the road, so their neighbours cover the region: rain on one stretch and not
+ * around it is a difference there, rain everywhere is not.
  */
-private val CONTEXT_ONLY = setOf(Metric.SPEED_AT_KMH, Metric.WIPER_ON_RATE)
+private fun contextOnly(type: AnchorType): Set<String> =
+    if (type == AnchorType.SEGMENT) setOf(Metric.SPEED_AT_KMH) else setOf(Metric.SPEED_AT_KMH, Metric.WIPER_ON_RATE)
 
 internal fun median(xs: List<Double>): Double? {
     if (xs.isEmpty()) return null

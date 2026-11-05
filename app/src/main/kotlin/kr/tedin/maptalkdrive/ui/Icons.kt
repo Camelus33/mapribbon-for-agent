@@ -44,7 +44,7 @@ fun DrawScope.issueIcon(metric: String?, c: Offset, s: Float, ink: Color) {
             line(0f, 0.2f, -0.24f, -0.2f)
             drawCircle(ink, w * 0.9f, Offset(c.x, c.y + s * 0.2f))
         }
-        Metric.FOG_TURNED_ON_RATE -> {
+        Metric.FOG_TURNED_ON_RATE, Metric.FOG_ON_RATE -> {
             // Front fog lamp: a lamp facing left, three beams, a wavy line through the beams.
             val lamp = Path().apply {
                 moveTo(c.x + s * 0.06f, c.y - s * 0.3f)

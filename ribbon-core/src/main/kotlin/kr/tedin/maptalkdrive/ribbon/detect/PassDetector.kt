@@ -58,6 +58,8 @@ class PassDetector(
     private val cfg: DetectorConfig = DetectorConfig(),
 ) {
     private val anchors = anchors.sortedBy { it.alongM }
+    /** Facility zones: braking and stops inside them belong to the facility, not to the segment around it. */
+    private val facilityZones = this.anchors.filter { it.type != AnchorType.SEGMENT }.map { it.zoneStartM.toDouble()..it.zoneEndM.toDouble() }
     private val open = LinkedHashMap<String, MutableList<PassSample>>()
     private var lastAlong: Double? = null
     private var lastFixT: Long? = null
@@ -103,6 +105,8 @@ class PassDetector(
             val a = anchors.first { it.id == id }
             val phase = when {
                 along == null -> Phase.INSIDE
+                // A segment has no approach or exit side: its halves stand in for before and after.
+                a.type == AnchorType.SEGMENT -> if (along < (a.alongM + a.endAlongM) / 2.0) Phase.BEFORE else Phase.AFTER
                 along < a.alongM -> Phase.BEFORE
                 along > a.endAlongM -> Phase.AFTER
                 else -> Phase.AT
@@ -124,21 +128,24 @@ class PassDetector(
     }
 
     private fun knotOf(a: Anchor, ps: List<PassSample>): Knot {
+        val segment = a.type == AnchorType.SEGMENT
         val withSpeed = ps.filter { it.speedKmh != null }
         val before = ps.filter { it.phase == Phase.BEFORE }
         val after = ps.filter { it.phase == Phase.AFTER }
         val speedIn = before.firstOrNull { it.speedKmh != null }?.speedKmh
-        val speedAt = if (a.type == AnchorType.TUNNEL) {
-            before.lastOrNull { it.speedKmh != null }?.speedKmh
-        } else {
-            withSpeed.filter { it.alongM != null }.minByOrNull { abs(it.alongM!! - a.alongM) }?.speedKmh
+        val speedAt = when (a.type) {
+            AnchorType.TUNNEL -> before.lastOrNull { it.speedKmh != null }?.speedKmh
+            AnchorType.SEGMENT -> withSpeed.map { it.speedKmh!! }.takeIf { it.isNotEmpty() }?.average()
+            else -> withSpeed.filter { it.alongM != null }.minByOrNull { abs(it.alongM!! - a.alongM) }?.speedKmh
         }
         val speedOut = after.lastOrNull { it.speedKmh != null }?.speedKmh
 
+        // On a segment, what happens inside a facility's zone is left to the facility's own knot.
+        fun own(p: PassSample) = !segment || p.alongM == null || facilityZones.none { p.alongM in it }
         var stoppedMs = 0L
         for (i in 1 until ps.size) {
             val v = ps[i - 1].speedKmh
-            if (v != null && v < cfg.stoppedBelowKmh) stoppedMs += ps[i].s.tMs - ps[i - 1].s.tMs
+            if (v != null && v < cfg.stoppedBelowKmh && own(ps[i - 1])) stoppedMs += ps[i].s.tMs - ps[i - 1].s.tMs
         }
 
         val lane = if (a.type == AnchorType.JUNCTION) laneChange(a, ps) else null
@@ -152,7 +159,7 @@ class PassDetector(
             speedAtKmh = speedAt?.round1(),
             speedOutKmh = speedOut?.round1(),
             stoppedS = (stoppedMs / 1000).toInt(),
-            hardBrake = hardBrake(withSpeed),
+            hardBrake = hardBrake(withSpeed.filter(::own)),
             lateLaneChange = lane != null,
             laneChangeBy = lane,
             wiperBefore = before.any { it.s.wiper },

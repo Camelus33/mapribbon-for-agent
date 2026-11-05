@@ -17,9 +17,9 @@ import kr.tedin.maptalkdrive.ribbon.spec.RouteBrief
  * Where other agents in the car read the ribbon channel. Read-only; every row carries the `maptalk.ribbon/1` (or
  * `maptalk.route/1`) JSON an agent can parse, next to flat columns for a quick look.
  *
- * - `content://kr.tedin.maptalkdrive.ribbons/ribbons`              every facility on the route, in driving order
- * - `content://kr.tedin.maptalkdrive.ribbons/ribbons/<anchorId>`   one facility
- * - `content://kr.tedin.maptalkdrive.ribbons/next?along_m=12000`   the next facility ahead that is different from usual
+ * - `content://kr.tedin.maptalkdrive.ribbons/ribbons`              every facility and segment on the route, in driving order
+ * - `content://kr.tedin.maptalkdrive.ribbons/ribbons/<anchorId>`   one facility or segment
+ * - `content://kr.tedin.maptalkdrive.ribbons/next?along_m=12000`   the next facility or segment ahead that is different from usual
  * - `content://kr.tedin.maptalkdrive.ribbons/route`                how the route bends (with its hairpins), and its facilities
  *
  * Each answers for the route on screen; add `?route=<routeId>` (SY60E, N44E) for another.

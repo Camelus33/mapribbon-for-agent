@@ -1,0 +1,117 @@
+{
+  "spec": "maptalk.scenario/1",
+  "id": "stopped-cars",
+  "routeId": "SY60E",
+  "title": "26.0–27.3 km 구간: 갑자기 멈춘 차들",
+  "titleEn": "km 26.0–27.3: cars stopping suddenly",
+  "description": "시설물이 없는 26.0–27.3 km 구간 한가운데서 9대 중 4대가 급제동하고 잠시 멈춘다. 나머지는 그대로 지나간다.",
+  "vehicles": [
+    {
+      "id": "sim-1",
+      "startMinutesAgo": 34,
+      "kmh": 92,
+      "widthClass": "MEDIUM",
+      "segments": [
+        {
+          "fromM": 26611,
+          "toM": 26646,
+          "kmh": 2
+        },
+        {
+          "fromM": 26581,
+          "toM": 26646,
+          "brake": true
+        }
+      ]
+    },
+    {
+      "id": "sim-2",
+      "startMinutesAgo": 38,
+      "kmh": 94,
+      "widthClass": "WIDE",
+      "segments": []
+    },
+    {
+      "id": "sim-3",
+      "startMinutesAgo": 42,
+      "kmh": 96,
+      "widthClass": "MEDIUM",
+      "segments": [
+        {
+          "fromM": 26611,
+          "toM": 26646,
+          "kmh": 2
+        },
+        {
+          "fromM": 26581,
+          "toM": 26646,
+          "brake": true
+        }
+      ]
+    },
+    {
+      "id": "sim-4",
+      "startMinutesAgo": 46,
+      "kmh": 98,
+      "widthClass": "NARROW",
+      "segments": []
+    },
+    {
+      "id": "sim-5",
+      "startMinutesAgo": 50,
+      "kmh": 92,
+      "widthClass": "MEDIUM",
+      "segments": [
+        {
+          "fromM": 26611,
+          "toM": 26646,
+          "kmh": 2
+        },
+        {
+          "fromM": 26581,
+          "toM": 26646,
+          "brake": true
+        }
+      ]
+    },
+    {
+      "id": "sim-6",
+      "startMinutesAgo": 54,
+      "kmh": 94,
+      "widthClass": "WIDE",
+      "segments": []
+    },
+    {
+      "id": "sim-7",
+      "startMinutesAgo": 58,
+      "kmh": 96,
+      "widthClass": "MEDIUM",
+      "segments": [
+        {
+          "fromM": 26611,
+          "toM": 26646,
+          "kmh": 2
+        },
+        {
+          "fromM": 26581,
+          "toM": 26646,
+          "brake": true
+        }
+      ]
+    },
+    {
+      "id": "sim-8",
+      "startMinutesAgo": 62,
+      "kmh": 98,
+      "widthClass": "MEDIUM",
+      "segments": []
+    },
+    {
+      "id": "sim-9",
+      "startMinutesAgo": 66,
+      "kmh": 92,
+      "widthClass": "NARROW",
+      "segments": []
+    }
+  ]
+}

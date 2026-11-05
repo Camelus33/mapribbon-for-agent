@@ -7,6 +7,7 @@
     <string name="preview_stop">멈춤</string>
     <string name="tunnel_exit">%1$s 출구</string>
     <string name="speed_camera">단속카메라</string>
+    <string name="segment_place">%1$s 구간</string>
     <plurals name="all_usual">
         <item quantity="other">판단한 %1$d곳 모두 평소대로</item>
     </plurals>
