@@ -1,0 +1,25 @@
+# Gradle / Android
+.gradle/
+build/
+*/build/
+local.properties
+*.iml
+.idea/
+.kotlin/
+captures/
+.externalNativeBuild/
+.cxx/
+
+# Signing material never goes in the repo
+*.jks
+*.keystore
+keystore.properties
+
+# Build-time caches
+tools/**/.cache/
+node_modules/
+
+# Agent state
+.claude/
+.codex/
+.DS_Store
