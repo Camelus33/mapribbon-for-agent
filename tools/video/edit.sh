@@ -4,7 +4,10 @@ set -euo pipefail
 cd "$(dirname "$0")/../../out/video"
 FF="/opt/homebrew/bin/ffmpeg -hide_banner -loglevel error -y"
 ENC="-c:v libx264 -preset slow -crf 18 -pix_fmt yuv420p -r 30 -an"
-APP="crop=1706:960:854:90,scale=1920:1080:flags=lanczos,fps=30"   # the app's window inside the Pleos screen
+BG=0xE6E5E0
+# The app's whole window inside the Pleos screen, framed above the 150px caption band.
+APP="crop=1706:1210:854:90,scale=-2:930:flags=lanczos,pad=1920:1080:(1920-iw)/2:0:color=$BG,fps=30"
+FULL="scale=-2:930:flags=lanczos,pad=1920:1080:(1920-iw)/2:0:color=$BG,fps=30"
 mkdir -p seg
 
 # Still cards.
@@ -29,9 +32,9 @@ $FF -i raw/s5_drive.mp4 -i cap/c_drive1.png -i cap/c_drive2.png -i cap/c_drive3.
   "[0:v]trim=3:70,setpts=(PTS-STARTPTS)/2.5,$APP[v];[v][1:v]overlay=0:0:enable='lt(t,8)'[a];[a][2:v]overlay=0:0:enable='between(t,8,19.5)'[b];[b][3:v]overlay=0:0:enable='gt(t,19.5)'" \
   $ENC seg/40.mp4
 # Signals: zoom on the console's vehicle panel.
-one s6_signals c_signals 50 "crop=960:540:1600:880,scale=1920:1080:flags=lanczos,fps=30"
+one s6_signals c_signals 50 "crop=1120:630:1440:670,scale=-2:930:flags=lanczos,pad=1920:1080:(1920-iw)/2:0:color=$BG,fps=30"
 # Restriction: the whole Pleos screen, so the cluster's gear shows.
-one s7_restrict c_restrict 60 "scale=1920:1080:flags=lanczos,fps=30"
+one s7_restrict c_restrict 60 "$FULL"
 
 (cd seg && ls *.mp4 | sed 's/^/file /' > list.txt)
 $FF -f concat -safe 0 -i seg/list.txt -c copy maptalk-drive-demo.mp4

@@ -1,86 +1,83 @@
 package kr.tedin.maptalkdrive.ui
 
-import androidx.compose.ui.graphics.Color
-import kr.tedin.maptalkdrive.ribbon.agg.Gist
 import kr.tedin.maptalkdrive.ribbon.brief.BriefingItem
 import kr.tedin.maptalkdrive.ribbon.spec.AnchorType
 import kr.tedin.maptalkdrive.ribbon.spec.Deviation
 import kr.tedin.maptalkdrive.ribbon.spec.Metric
-import kr.tedin.maptalkdrive.ribbon.spec.RibbonStatus
+import kr.tedin.maptalkdrive.ribbon.spec.Reason
 import kotlin.math.roundToInt
 
-/** Colours of the in-car screens (dark, matching the proposal mock-ups). */
-object Palette {
-    val bg = Color(0xFF0F1513)
-    val panel = Color(0xFF161D1A)
-    val ink = Color(0xFFE8EFEC)
-    val dim = Color(0xFF8FA19A)
-    val faint = Color(0xFF6F7D77)
-    val track = Color(0xFF3A4541)
-    val red = Color(0xFFEF6A5B)
-    val redBg = Color(0xFF2A1715)
-    val yellow = Color(0xFFE6B34A)
-    val yellowBg = Color(0xFF2B2410)
-    val teal = Color(0xFF5CC3E0)
-    val sim = Color(0xFFB98CF0)
-}
-
-fun glyph(type: AnchorType) = when (type) {
-    AnchorType.TUNNEL -> "터"
-    AnchorType.JUNCTION -> "분"
-    AnchorType.TOLL -> "톨"
-    AnchorType.CAMERA -> "카"
-}
-
-fun colorOf(item: BriefingItem): Color = when {
-    item.state.status == RibbonStatus.NOT_ENOUGH -> Palette.faint
-    item.state.deviation == Deviation.HIGH -> Palette.red
-    item.state.deviation == Deviation.SOME -> Palette.yellow
-    else -> Palette.dim
-}
-
-fun km(m: Number) = "%.1f km".format(m.toDouble() / 1000)
-
-/** Where on the strip an anchor sits: the same point the driving view counts down to (a tunnel's exit). */
-fun stripAlong(item: BriefingItem): Int = item.pointM
-
-/** Short title for a label or the driving line, from the ribbon's top reason. Numbers only from the ribbon. */
-fun titleOf(item: BriefingItem): String {
-    val name = item.anchor.name
-    return when (item.state.reasons.firstOrNull()?.metric) {
-        Metric.WIPER_TURNED_ON_RATE -> "$name 출구 젖음 의심"
-        Metric.FOG_TURNED_ON_RATE -> "$name 출구 안개 의심"
-        Metric.LATE_LANE_CHANGE_RATE -> "$name 직전 끼어들기"
-        Metric.HARD_BRAKE_RATE -> "$name 급제동 잦음"
-        Metric.ENTRY_DECEL_KMH -> "$name 진입 급감속"
-        Metric.STOP_RATE -> "$name 정체"
-        else -> name
+/**
+ * The words of the screens, one phrase per metric so the headline, the label, the table and the driving line never
+ * describe the same thing three ways. Every number comes from the ribbon itself.
+ */
+object Words {
+    /** Full issue phrase: headline, table, driving line. */
+    fun issue(metric: String?): String = when (metric) {
+        Metric.WIPER_TURNED_ON_RATE -> "와이퍼 켠 차 많음"
+        Metric.FOG_TURNED_ON_RATE -> "안개등 켠 차 많음"
+        Metric.LATE_LANE_CHANGE_RATE -> "늦은 끼어들기 많음"
+        Metric.HARD_BRAKE_RATE -> "급제동 많음"
+        Metric.ENTRY_DECEL_KMH -> "진입 급감속"
+        Metric.STOP_RATE -> "멈춘 차 많음"
+        else -> "평소와 다름"
     }
-}
 
-fun detailOf(item: BriefingItem): String {
-    val r = item.state.reasons.firstOrNull() ?: return item.state.gist
-    val v = Gist.fmt(r.metric, r.value)
-    val usual = r.baseline?.let { " (평소 ${Gist.fmt(r.metric, it)})" } ?: ""
-    val what = when (r.metric) {
-        Metric.WIPER_TURNED_ON_RATE -> "${item.state.n}대 중 $v 와이퍼"
-        Metric.FOG_TURNED_ON_RATE -> "${item.state.n}대 중 $v 안개등"
-        Metric.LATE_LANE_CHANGE_RATE -> "${item.state.n}대 중 $v 늦은 차로 변경"
-        Metric.HARD_BRAKE_RATE -> "${item.state.n}대 중 $v 급제동"
-        else -> v
+    /** Short issue word for a strip label. */
+    fun issueShort(metric: String?): String = when (metric) {
+        Metric.WIPER_TURNED_ON_RATE -> "와이퍼"
+        Metric.FOG_TURNED_ON_RATE -> "안개등"
+        Metric.LATE_LANE_CHANGE_RATE -> "늦은 끼어들기"
+        Metric.HARD_BRAKE_RATE -> "급제동"
+        Metric.ENTRY_DECEL_KMH -> "급감속"
+        Metric.STOP_RATE -> "정체"
+        else -> "평소와 다름"
     }
-    return "$what$usual · ${km(stripAlong(item))}"
-}
 
-fun headlineOf(item: BriefingItem): String {
-    val r = item.state.reasons.first()
-    val pct = (r.value * 100).roundToInt()
-    val at = "%.0f km".format(stripAlong(item) / 1000.0)
-    return when (r.metric) {
-        Metric.WIPER_TURNED_ON_RATE -> "$at ${item.anchor.name} 출구, 와이퍼 켠 차 $pct%"
-        Metric.FOG_TURNED_ON_RATE -> "$at ${item.anchor.name} 출구, 안개등 켠 차 $pct%"
-        Metric.LATE_LANE_CHANGE_RATE -> "$at ${item.anchor.name} 직전, 늦은 끼어들기 $pct%"
-        Metric.HARD_BRAKE_RATE -> "$at ${item.anchor.name}, 급제동 $pct%"
-        else -> "$at ${titleOf(item)}"
+    /** The facility as a driver names it. Tunnel issues are about the exit; virtual cameras are just cameras here. */
+    fun place(item: BriefingItem): String = when (item.anchor.type) {
+        AnchorType.TUNNEL -> "${item.anchor.name} 출구"
+        AnchorType.CAMERA -> "단속카메라"
+        else -> item.anchor.name
     }
+
+    fun kind(type: AnchorType): String = when (type) {
+        AnchorType.TUNNEL -> "터널"
+        AnchorType.JUNCTION -> "분기점"
+        AnchorType.CAMERA -> "단속카메라"
+        AnchorType.TOLL -> "요금소"
+    }
+
+    fun level(d: Deviation): String = when (d) {
+        Deviation.HIGH -> "평소와 크게 다름"
+        Deviation.SOME -> "평소와 조금 다름"
+        Deviation.NONE -> "평소대로"
+    }
+
+    fun top(item: BriefingItem): Reason? = item.state.reasons.firstOrNull()
+
+    /** "9대 중 6대": with eight or nine cars a percentage overstates precision, so say the count. */
+    fun thisTime(item: BriefingItem): String {
+        val r = top(item) ?: return "${item.state.n}대"
+        return if (r.metric.endsWith("Kmh")) "평균 ${r.value.roundToInt()} km/h" else "${item.state.n}대 중 ${(r.value * item.state.n).roundToInt()}대"
+    }
+
+    fun usual(item: BriefingItem): String {
+        val b = top(item)?.baseline ?: return "—"
+        return if (top(item)!!.metric.endsWith("Kmh")) "${b.roundToInt()} km/h" else "${(b * 100).roundToInt()}%"
+    }
+
+    /** Position along the route, always one decimal. */
+    fun at(m: Number): String = "%.1f km".format(m.toDouble() / 1000)
+
+    /** Distance ahead for the driving line: whole km from 10 km, one decimal below, metres under 1 km, "곧" under 150 m. */
+    fun ahead(m: Double): Pair<String, String> = when {
+        m < 150 -> "곧" to ""
+        m < 1000 -> "${((m / 100).roundToInt() * 100).coerceAtLeast(100)}" to "m 앞"
+        m < 10_000 -> "%.1f".format(m / 1000) to "km 앞"
+        else -> "${(m / 1000).roundToInt()}" to "km 앞"
+    }
+
+    /** Degrees without a negative zero. */
+    fun degrees(v: Double?): String = v?.let { "%.1f°".format(if (kotlin.math.abs(it) < 0.05) 0.0 else it) } ?: "—"
 }

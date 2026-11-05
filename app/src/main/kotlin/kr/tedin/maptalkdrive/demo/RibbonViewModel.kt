@@ -42,6 +42,8 @@ data class UiState(
     val log: List<String> = emptyList(),
     val scenarioId: String? = null,
     val replaying: Boolean = false,
+    val replayDone: Int = 0,
+    val replayTotal: Int = 0,
     val drive: DriveState? = null,
     val naviNotice: String? = null,
 )
@@ -72,7 +74,7 @@ class RibbonViewModel(app: Application) : AndroidViewModel(app) {
         viewModelScope.launch {
             navi.events.collect { e ->
                 val notice = when (e) {
-                    is NaviEvent.RouteStarted -> "내비 경로 시작: ${e.name ?: "목적지"} · ${"%.1f".format(e.distanceM / 1000.0)} km → 시연 구간 리본을 보여 줍니다"
+                    is NaviEvent.RouteStarted -> "내비 경로 시작 · ${e.name ?: "목적지"} ${"%.1f".format(e.distanceM / 1000.0)} km · 시연 구간을 보여 줍니다"
                     NaviEvent.Arrived -> "목적지 도착"
                     NaviEvent.Cancelled -> "경로 취소"
                 }
@@ -105,7 +107,7 @@ class RibbonViewModel(app: Application) : AndroidViewModel(app) {
         val scenario = data.scenarios.firstOrNull { it.id == id } ?: return
         replayJob?.cancel()
         synchronized(knots) { knots.clear() }
-        _ui.update { it.copy(scenarioId = id, replaying = true, knotCount = 0, log = emptyList(), briefing = briefingNow()) }
+        _ui.update { it.copy(scenarioId = id, replaying = true, replayDone = 0, replayTotal = scenario.vehicles.size, knotCount = 0, log = emptyList(), briefing = briefingNow()) }
         log("시나리오: ${scenario.title}")
         replayJob = viewModelScope.launch {
             val now = System.currentTimeMillis()
@@ -115,7 +117,8 @@ class RibbonViewModel(app: Application) : AndroidViewModel(app) {
                     ScenarioDrive.samples(v, data.route, anchors, startMs = now - v.startMinutesAgo * 60_000L)
                         .flatMap { detector.accept(it) }.toList()
                 }
-                addKnots(produced, "${v.id} (${v.startMinutesAgo}분 전 출발)")
+                addKnots(produced, "가상 차량 ${_ui.value.replayDone + 1} · ${v.startMinutesAgo}분 전 출발")
+                _ui.update { it.copy(replayDone = it.replayDone + 1) }
                 delay(700)
             }
             _ui.update { it.copy(replaying = false) }
@@ -125,7 +128,7 @@ class RibbonViewModel(app: Application) : AndroidViewModel(app) {
     fun clear() {
         replayJob?.cancel()
         synchronized(knots) { knots.clear() }
-        _ui.update { it.copy(scenarioId = null, replaying = false, knotCount = 0, log = emptyList(), briefing = briefingNow()) }
+        _ui.update { it.copy(scenarioId = null, replaying = false, replayDone = 0, replayTotal = 0, knotCount = 0, log = emptyList(), briefing = briefingNow()) }
     }
 
     /** Drives this car down the demo route faster than real time. Its own knots join the channel like anyone's. */
@@ -171,7 +174,7 @@ class RibbonViewModel(app: Application) : AndroidViewModel(app) {
         if (new.isEmpty()) return
         val count = synchronized(knots) { knots += new; knots.size }
         _ui.update { it.copy(knotCount = count, briefing = briefingNow()) }
-        log("$who · 매듭 ${new.size}개")
+        log("$who · 기록 ${new.size}건")
     }
 
     private fun briefingNow(): Briefing {

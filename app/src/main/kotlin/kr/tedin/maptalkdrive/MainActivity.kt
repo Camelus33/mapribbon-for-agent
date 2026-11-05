@@ -17,6 +17,7 @@ import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import kr.tedin.maptalkdrive.demo.RibbonViewModel
 import kr.tedin.maptalkdrive.ui.AppScreen
+import kr.tedin.maptalkdrive.ui.MaptalkTheme
 
 class MainActivity : ComponentActivity() {
     private val vm: RibbonViewModel by viewModels()
@@ -35,7 +36,7 @@ class MainActivity : ComponentActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        setContent { AppScreen(vm, restricted.value) }
+        setContent { MaptalkTheme { AppScreen(vm, restricted.value) } }
         watchDrivingRestrictions()
         val missing = runtimePermissions.filter { checkSelfPermission(it) != PackageManager.PERMISSION_GRANTED }
         if (missing.isEmpty()) vm.startPorts() else ask.launch(missing.toTypedArray())
