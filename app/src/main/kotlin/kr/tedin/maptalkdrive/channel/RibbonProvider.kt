@@ -20,7 +20,7 @@ import kr.tedin.maptalkdrive.ribbon.spec.RouteBrief
  * - `content://kr.tedin.maptalkdrive.ribbons/ribbons`              every facility on the route, in driving order
  * - `content://kr.tedin.maptalkdrive.ribbons/ribbons/<anchorId>`   one facility
  * - `content://kr.tedin.maptalkdrive.ribbons/next?along_m=12000`   the next facility ahead that is different from usual
- * - `content://kr.tedin.maptalkdrive.ribbons/route`                how the route bends, and its facilities
+ * - `content://kr.tedin.maptalkdrive.ribbons/route`                how the route bends (with its hairpins), and its facilities
  *
  * Each answers for the route on screen; add `?route=<routeId>` (SY60E, N44E) for another.
  *
@@ -57,7 +57,7 @@ class RibbonProvider : ContentProvider() {
                 val set = r.anchorSet
                 val brief = RouteBrief(
                     routeId = set.routeId, routeName = set.routeName, lengthM = set.lengthM, attribution = set.attribution,
-                    curves = r.curves,
+                    curves = r.curves, hairpins = r.hairpins,
                     anchors = set.anchors.sortedBy { it.alongM }.map { AnchorRef(it.id, it.type, it.dir, it.name, it.virtual) },
                 )
                 MatrixCursor(arrayOf("route_id", "name", "length_m", "json")).apply {
@@ -74,7 +74,7 @@ class RibbonProvider : ContentProvider() {
                 val s = item.state
                 addRow(arrayOf<Any?>(
                     item.anchor.id, item.anchor.type.name, item.anchor.name, item.anchor.alongM, item.pointM,
-                    distance?.toInt(), s.status.name, s.deviation.name, s.n, s.window?.minutes,
+                    distance?.toInt(), s.status.name, s.deviation.name, s.n, s.window?.minutes, s.window?.lastMs,
                     s.reasons.firstOrNull()?.metric, s.gist, RibbonJson.encodeToString(RibbonState.serializer(), s),
                 ))
             }
@@ -100,7 +100,7 @@ class RibbonProvider : ContentProvider() {
         private const val ROUTE = 4
         val COLUMNS = arrayOf(
             "anchor_id", "type", "name", "along_m", "point_m", "distance_m", "status", "deviation", "n", "window_min",
-            "top_metric", "gist", "json",
+            "last_ms", "top_metric", "gist", "json",
         )
     }
 }

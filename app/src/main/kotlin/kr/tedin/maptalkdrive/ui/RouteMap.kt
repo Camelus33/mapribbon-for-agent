@@ -36,6 +36,7 @@ import kr.tedin.maptalkdrive.ribbon.brief.Briefing
 import kr.tedin.maptalkdrive.ribbon.brief.BriefingItem
 import kr.tedin.maptalkdrive.ribbon.geo.CurveClass
 import kr.tedin.maptalkdrive.ribbon.geo.CurveStretch
+import kr.tedin.maptalkdrive.ribbon.geo.Hairpin
 import kr.tedin.maptalkdrive.ribbon.geo.RouteIndex
 import kr.tedin.maptalkdrive.ribbon.spec.AnchorType
 import kr.tedin.maptalkdrive.ribbon.spec.Deviation
@@ -115,11 +116,15 @@ fun curveStroke(c: CurveClass, t: Tokens): Pair<Color, Dp> = when (c) {
 }
 
 val TunnelBand = 22.dp
+val HairpinMark = 22.dp
 
 /**
  * Parked, before departure: the road from bottom-left to top-right, drawn by how it bends. Tunnels are a quiet band
  * under the road, usual facilities short ticks across it, different ones status marks with an icon chip beside them
  * (what was different and how many cars), never over the road, another chip or a `reserved` area.
+ *
+ * Hairpins are marked on the road, the tightest first; one that would touch a facility or another hairpin on screen is
+ * left out, so on a pass the marks show where the worst bends are rather than every one.
  *
  * `preview` puts the preview-run dot on the road and dims what it has passed. It is read only while drawing the
  * overlay, so a moving dot redraws the overlay and nothing else.
@@ -129,6 +134,7 @@ fun RouteMap(
     briefing: Briefing,
     route: RouteIndex,
     curves: List<CurveStretch>,
+    hairpins: List<Hairpin>,
     startName: String,
     endName: String,
     t: Tokens,
@@ -137,6 +143,7 @@ fun RouteMap(
     modifier: Modifier = Modifier,
 ) {
     val tm = rememberTextMeasurer()
+    val w = rememberWords()
     BoxWithConstraints(modifier) {
         val density = LocalDensity.current
         val wPx = with(density) { maxWidth.toPx() }
@@ -148,7 +155,14 @@ fun RouteMap(
             Spacer(
                 Modifier.fillMaxSize().graphicsLayer { compositingStrategy = CompositingStrategy.Offscreen }.drawWithCache {
                     val ring = 2.dp.toPx()
-                    val chips = placeChips(briefing, geo, tm, t, reserved, size.width, size.height)
+                    val facilities = briefing.items.map { geo.at(it.pointM.toDouble()).first }
+                    val pinGap = HairpinMark.toPx() + 4.dp.toPx()
+                    val pins = mutableListOf<Offset>()
+                    for (h in hairpins.sortedBy { it.radiusM }) {
+                        val p = geo.at(h.atM).first
+                        if (facilities.none { (it - p).getDistance() < pinGap + 8.dp.toPx() } && pins.none { (it - p).getDistance() < pinGap }) pins += p
+                    }
+                    val chips = placeChips(briefing, geo, tm, t, reserved, pins, w::count, size.width, size.height)
                     val tickStyle = Type.captionNum.copy(color = t.muted)
                     val lengthKm = route.lengthM / 1000
                     val ticks = (10 until lengthKm.toInt() step 10).map { km -> km to tm.measure("$km", tickStyle) }
@@ -177,6 +191,7 @@ fun RouteMap(
                         }
                         drawText(startL, topLeft = Offset(geo.start.x - startL.size.width / 2f, geo.start.y + 20.dp.toPx()))
                         drawText(endL, topLeft = Offset(geo.end.x - endL.size.width / 2f, geo.end.y - 20.dp.toPx() - endL.size.height))
+                        for (p in pins) hairpinMark(p, HairpinMark.toPx(), t, ring)
 
                         for (item in briefing.items) {
                             val (c, dir) = geo.at(item.pointM.toDouble())
@@ -241,14 +256,14 @@ private val ChipGap = 8.dp
  */
 private fun Density.placeChips(
     briefing: Briefing, geo: RouteGeometry, tm: TextMeasurer, t: Tokens,
-    reserved: List<Rect>, w: Float, h: Float,
+    reserved: List<Rect>, pins: List<Offset>, countOf: (BriefingItem) -> String, w: Float, h: Float,
 ): List<MapChip> {
     val roadPts = geo.samples(6.dp.toPx())
-    val marks = briefing.items.filter { it.different }.map { geo.at(it.pointM.toDouble()).first }
+    val marks = briefing.items.filter { it.different }.map { geo.at(it.pointM.toDouble()).first } + pins
     val pad = 8.dp.toPx()
     val roadClear = TunnelBand.toPx() / 2
     val options = briefing.labeled.sortedBy { it.pointM }.map { item ->
-        val count = tm.measure(Words.count(item), Type.label.copy(color = t.ink, fontFeatureSettings = "tnum"))
+        val count = tm.measure(countOf(item), Type.label.copy(color = t.ink, fontFeatureSettings = "tnum"))
         val cw = ChipPad.toPx() * 2 + ChipIcon.toPx() + ChipGap.toPx() + count.size.width
         val ch = ChipIcon.toPx() + 12.dp.toPx()
         val (c, _) = geo.at(item.pointM.toDouble())
@@ -308,6 +323,11 @@ fun LegendSwatch(kind: LegendKind, t: Tokens) = when (kind) {
         drawRect(t.tunnel, Offset(0f, (size.height - TunnelBand.toPx()) / 2), Size(size.width, TunnelBand.toPx()))
         drawLine(t.muted, Offset(0f, size.height / 2), Offset(size.width, size.height / 2), 3.dp.toPx())
     }
+    LegendKind.HAIRPIN -> Canvas(Modifier.size(width = 40.dp, height = 24.dp)) {
+        val (color, width) = curveStroke(CurveClass.SHARP, t)
+        drawLine(color, Offset(0f, size.height / 2), Offset(size.width, size.height / 2), width.toPx())
+        hairpinMark(Offset(size.width / 2, size.height / 2), HairpinMark.toPx(), t, 2.dp.toPx())
+    }
 }
 
-enum class LegendKind { HIGH, SOME, USUAL, NOT_ENOUGH, STRAIGHT, CURVE, SHARP, TUNNEL }
+enum class LegendKind { HIGH, SOME, USUAL, NOT_ENOUGH, STRAIGHT, CURVE, SHARP, TUNNEL, HAIRPIN }

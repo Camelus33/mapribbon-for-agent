@@ -81,4 +81,36 @@ class CurvatureTest {
         assertTrue(sharp.size >= 10, "sharp stretches: ${sharp.size}")
         assertTrue(sharp.minOf { it.minRadiusM } < 150, sharp.toString())
     }
+
+    @Test fun `a road that turns back on itself is a hairpin, a 90 degree curve is not`() {
+        val hp = Curvature.hairpins(bend(30.0, 180.0, straightStep = 20.0, arcStep = 8.0))
+        assertEquals(1, hp.size, hp.toString())
+        assertTrue(hp[0].atM in 2000.0..2000.0 + 30 * PI, hp.toString())
+        assertTrue(hp[0].turnDeg >= 150, hp.toString())
+        assertTrue(Curvature.hairpins(bend(300.0, 90.0)).isEmpty())
+        assertTrue(Curvature.hairpins(bend(60.0, 90.0, straightStep = 20.0, arcStep = 8.0)).isEmpty(), "a tight right angle is sharp, not a hairpin")
+    }
+
+    @Test fun `an S-bend does not add up to a hairpin`() {
+        // Left 90 then right 90 within 200 m: tight, but the car ends up heading the same way.
+        val pts = mutableListOf<Pair<Double, Double>>()
+        var x = 0.0
+        while (x < 1000) { pts += x to 0.0; x += 20 }
+        val r = 40.0
+        for (i in 0..10) { val a = PI / 2 * i / 10; pts += (1000 + r * sin(a)) to (r * (1 - cos(a))) }
+        for (i in 1..10) { val a = PI / 2 * i / 10; pts += (1000 + r + r * (1 - cos(a))) to (r + r * sin(a)) }
+        val (ex, ey) = pts.last()
+        for (d in 1..50) pts += (ex + d * 20.0) to ey
+        assertTrue(Curvature.hairpins(route(pts)).isEmpty(), Curvature.hairpins(route(pts)).toString())
+    }
+
+    @Test fun `the Hangyeryeong pass has its hairpins on the pass, the expressway none`() {
+        val n44 = RouteIndex.fromGeoJson(File("../app/src/main/assets/routes/N44E/route.geojson").readText())
+        val hp = Curvature.hairpins(n44)
+        assertTrue(hp.size in 6..16, "hairpins: $hp")
+        assertTrue(hp.all { it.atM in 28_000.0..37_000.0 }, hp.toString())
+        hp.zipWithNext().forEach { (a, b) -> assertTrue(b.atM - a.atM >= 250, "$a $b") }
+        val sy60 = RouteIndex.fromGeoJson(File("../app/src/main/assets/routes/SY60E/route.geojson").readText())
+        assertTrue(Curvature.hairpins(sy60).isEmpty())
+    }
 }

@@ -109,6 +109,35 @@ private fun DrawScope.arrowHead(tip: Offset, from: Offset, len: Float, ink: Colo
     drawLine(ink, tip, tip - n * len - side * len * 0.6f, w, StrokeCap.Round)
 }
 
+/** A car seen from the side: goes with counts of cars ("6/9"), so they read as cars, not as a date. */
+fun DrawScope.carIcon(c: Offset, s: Float, ink: Color) {
+    val w = s * 0.085f
+    val body = Path().apply {
+        moveTo(c.x - s * 0.44f, c.y + s * 0.14f)
+        lineTo(c.x - s * 0.44f, c.y - s * 0.02f)
+        lineTo(c.x - s * 0.3f, c.y - s * 0.06f)
+        lineTo(c.x - s * 0.16f, c.y - s * 0.26f)
+        lineTo(c.x + s * 0.18f, c.y - s * 0.26f)
+        lineTo(c.x + s * 0.32f, c.y - s * 0.06f)
+        lineTo(c.x + s * 0.44f, c.y - s * 0.02f)
+        lineTo(c.x + s * 0.44f, c.y + s * 0.14f)
+        close()
+    }
+    drawPath(body, ink, style = Stroke(w, cap = StrokeCap.Round, join = StrokeJoin.Round))
+    drawCircle(ink, s * 0.1f, Offset(c.x - s * 0.24f, c.y + s * 0.18f))
+    drawCircle(ink, s * 0.1f, Offset(c.x + s * 0.24f, c.y + s * 0.18f))
+}
+
+/** A hairpin bend: the road goes up and comes straight back down. */
+fun DrawScope.hairpinIcon(c: Offset, s: Float, ink: Color) {
+    val w = s * 0.11f
+    val r = s * 0.19f
+    val top = c.y - s * 0.06f
+    drawArc(ink, 180f, 180f, false, Offset(c.x - r, top - r), Size(r * 2, r * 2), style = Stroke(w, cap = StrokeCap.Round))
+    drawLine(ink, Offset(c.x - r, top), Offset(c.x - r, c.y + s * 0.32f), w, StrokeCap.Round)
+    drawLine(ink, Offset(c.x + r, top), Offset(c.x + r, c.y + s * 0.32f), w, StrokeCap.Round)
+}
+
 /** A clock: how recent the records are. */
 fun DrawScope.clockIcon(c: Offset, s: Float, ink: Color) {
     val w = s * 0.09f

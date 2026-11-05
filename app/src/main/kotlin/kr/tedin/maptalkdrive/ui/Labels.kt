@@ -54,6 +54,67 @@ class Words(private val r: Resources) {
         },
     )
 
+    /**
+     * What the behaviour may mean for the driver, always said as a possibility. The issue icon and the count of cars
+     * next to it are the evidence; this line is the reading of it. Hard braking at a camera is the camera's doing, not
+     * a hold-up.
+     */
+    fun meaning(item: BriefingItem): String = r.getString(
+        when (top(item)?.metric) {
+            Metric.WIPER_TURNED_ON_RATE, Metric.WIPER_ON_RATE -> R.string.meaning_rain
+            Metric.FOG_TURNED_ON_RATE -> R.string.meaning_fog
+            Metric.HARD_BRAKE_RATE -> if (item.anchor.type == AnchorType.CAMERA) R.string.meaning_camera_brake else R.string.meaning_holdup
+            Metric.LATE_LANE_CHANGE_RATE -> R.string.meaning_exit_busy
+            Metric.STOP_RATE -> R.string.meaning_queue
+            Metric.ENTRY_DECEL_KMH, Metric.SPEED_AT_KMH -> R.string.meaning_slow
+            else -> R.string.meaning_other
+        },
+    )
+
+    /**
+     * This time, in cars: "6/9대", "6 of 9". With eight or nine cars a percentage overstates precision, and a bare
+     * "6/9" reads as a date. Speeds stay in km/h.
+     */
+    fun count(item: BriefingItem): String {
+        val top = top(item) ?: return "${item.state.n}"
+        return if (isSpeed(top)) "${top.value.roundToInt()} km/h"
+        else r.getString(R.string.count_cars, (top.value * item.state.n).roundToInt(), item.state.n)
+    }
+
+    /**
+     * The usual value on the same scale as [count]: out of the same number of cars ("usually ~1 of 9"), or "almost none"
+     * when that rounds to zero. Null when there is no usual value (the place was judged against its neighbours).
+     */
+    fun usual(item: BriefingItem): String? {
+        val top = top(item) ?: return null
+        val b = top.baseline ?: return null
+        if (isSpeed(top)) return r.getString(R.string.usual_value, "${b.roundToInt()} km/h")
+        val cars = (b * item.state.n).roundToInt()
+        return if (cars == 0) r.getString(R.string.usual_none) else r.getString(R.string.usual_cars, cars, item.state.n)
+    }
+
+    /** How long ago the most recent car passed. `lastMs` is already rounded down to 5 minutes by the channel. */
+    fun lastCar(lastMs: Long, nowMs: Long): String {
+        val min = ((nowMs - lastMs) / 60_000).toInt()
+        return when {
+            min < 5 -> r.getString(R.string.last_car_recent)
+            min < 60 -> r.getString(R.string.last_car_min, min / 5 * 5)
+            else -> r.getString(R.string.last_car_hour, min / 60)
+        }
+    }
+
+    /** One place said in full, for accessibility. */
+    fun describe(item: BriefingItem): String {
+        val top = top(item)
+        val cars = top?.takeIf { !isSpeed(it) }?.let { r.getString(R.string.count_cars_a11y, (it.value * item.state.n).roundToInt(), item.state.n) } ?: count(item)
+        return listOfNotNull(
+            meaning(item), place(item), issue(top?.metric), cars, usual(item), level(item.state.deviation),
+            item.state.window?.let { minutes(it.minutes) },
+        ).joinToString(", ")
+    }
+
+    fun plural(id: Int, n: Int): String = r.getQuantityString(id, n, n)
+
     fun level(d: Deviation): String = r.getString(
         when (d) {
             Deviation.HIGH -> R.string.legend_high
@@ -79,17 +140,8 @@ class Words(private val r: Resources) {
 
         private fun isSpeed(r: Reason) = r.metric.endsWith("Kmh")
 
-        /** "6/9": with eight or nine cars a percentage overstates precision, so say the count. Speeds in km/h. */
-        fun count(item: BriefingItem): String {
-            val r = top(item) ?: return "${item.state.n}"
-            return if (isSpeed(r)) "${r.value.roundToInt()} km/h" else "${(r.value * item.state.n).roundToInt()}/${item.state.n}"
-        }
-
-        fun usual(item: BriefingItem): String {
-            val r = top(item) ?: return "—"
-            val b = r.baseline ?: return "—"
-            return if (isSpeed(r)) "${b.roundToInt()} km/h" else "${(b * 100).roundToInt()}%"
-        }
+        /** The count is of cars (a car icon goes with it), not a speed. */
+        fun isCars(item: BriefingItem): Boolean = top(item)?.let { !isSpeed(it) } ?: false
 
         /** This time and usual on one 0..1 scale for the bullet bar (speeds against the larger of the two, plus room). */
         fun shares(item: BriefingItem): Pair<Float, Float?>? {

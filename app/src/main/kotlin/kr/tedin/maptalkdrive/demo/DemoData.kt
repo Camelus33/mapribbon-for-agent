@@ -5,6 +5,7 @@ import kr.tedin.maptalkdrive.ribbon.agg.Baseline
 import kr.tedin.maptalkdrive.ribbon.demo.Scenario
 import kr.tedin.maptalkdrive.ribbon.geo.CurveStretch
 import kr.tedin.maptalkdrive.ribbon.geo.Curvature
+import kr.tedin.maptalkdrive.ribbon.geo.Hairpin
 import kr.tedin.maptalkdrive.ribbon.geo.RouteIndex
 import kr.tedin.maptalkdrive.ribbon.spec.AnchorSet
 import kr.tedin.maptalkdrive.ribbon.spec.RibbonJson
@@ -13,6 +14,7 @@ import kr.tedin.maptalkdrive.ribbon.spec.RibbonJson
 class RouteData(val anchorSet: AnchorSet, val route: RouteIndex) {
     val id: String get() = anchorSet.routeId
     val curves: List<CurveStretch> by lazy { Curvature.stretches(route) }
+    val hairpins: List<Hairpin> by lazy { Curvature.hairpins(route) }
 }
 
 /**

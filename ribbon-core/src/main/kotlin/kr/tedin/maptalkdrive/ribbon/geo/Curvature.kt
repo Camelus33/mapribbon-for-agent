@@ -3,6 +3,7 @@ package kr.tedin.maptalkdrive.ribbon.geo
 import kotlinx.serialization.Serializable
 import kotlin.math.PI
 import kotlin.math.abs
+import kotlin.math.atan2
 import kotlin.math.cos
 import kotlin.math.hypot
 
@@ -22,11 +23,20 @@ data class CurveStretch(val fromM: Double, val toM: Double, val curve: CurveClas
     val lengthM: Double get() = toM - fromM
 }
 
+/**
+ * A bend where the road turns back on itself: its heading changes by [Curvature.HAIRPIN_TURN_DEG] or more within
+ * [Curvature.HAIRPIN_SPAN_M] of road. Inside a long SHARP stretch these are the bends that need the most care.
+ */
+@Serializable
+data class Hairpin(val atM: Double, val radiusM: Double, val turnDeg: Double)
+
 object Curvature {
     const val STRAIGHT_FROM_M = 2_000.0
     const val SHARP_BELOW_M = 500.0
     /** Radii are capped here: a dead straight line reports 100 km, which JSON can carry and Infinity cannot. */
     const val MAX_RADIUS_M = 100_000.0
+    const val HAIRPIN_TURN_DEG = 120.0
+    const val HAIRPIN_SPAN_M = 200.0
 
     fun classOf(radiusM: Double): CurveClass = when {
         radiusM >= STRAIGHT_FROM_M -> CurveClass.STRAIGHT
@@ -114,5 +124,53 @@ object Curvature {
             // Whole metres: the radius is an estimate from OSM geometry, decimals would claim a precision it does not have.
             CurveStretch(r.from, r.to, r.curve, Math.round(tight?.second ?: MAX_RADIUS_M).toDouble(), tight?.first ?: r.from)
         }
+    }
+
+    /**
+     * Net change of heading between `fromM` and `toM`, in degrees. Left and right turns cancel, so an S-bend stays
+     * small and only a bend that really turns the car around comes out near 180.
+     */
+    fun turnDeg(route: RouteIndex, fromM: Double, toM: Double, stepM: Double = 5.0): Double {
+        val kx = cos(route.pointAt(fromM.coerceIn(0.0, route.lengthM)).lat * PI / 180)
+        fun heading(m: Double): Double {
+            val a = route.pointAt((m - stepM).coerceIn(0.0, route.lengthM))
+            val b = route.pointAt((m + stepM).coerceIn(0.0, route.lengthM))
+            return atan2(b.lat - a.lat, (b.lon - a.lon) * kx)
+        }
+        var sum = 0.0
+        var prev = heading(fromM)
+        var m = fromM + stepM
+        while (m <= toM) {
+            val h = heading(m)
+            var d = h - prev
+            while (d > PI) d -= 2 * PI
+            while (d < -PI) d += 2 * PI
+            sum += d
+            prev = h
+            m += stepM
+        }
+        return abs(sum) * 180 / PI
+    }
+
+    /**
+     * The hairpins of a route: the tightest points of the curvature profile ([profile]) that are SHARP and around which
+     * the road turns at least [HAIRPIN_TURN_DEG] within [HAIRPIN_SPAN_M]. Of two closer than `minGapM` the tighter
+     * one is kept, so a switchback is one hairpin, not three.
+     */
+    fun hairpins(route: RouteIndex, minGapM: Double = 250.0): List<Hairpin> {
+        val p = profile(route)
+        val candidates = (1 until p.size - 1)
+            .filter { i -> p[i].second < SHARP_BELOW_M && p[i].second <= p[i - 1].second && p[i].second < p[i + 1].second }
+            .map { i ->
+                val (at, r) = p[i]
+                val turn = turnDeg(route, at - HAIRPIN_SPAN_M / 2, at + HAIRPIN_SPAN_M / 2)
+                Hairpin(at, Math.round(r).toDouble(), Math.round(turn).toDouble())
+            }
+            .filter { it.turnDeg >= HAIRPIN_TURN_DEG }
+        val kept = mutableListOf<Hairpin>()
+        for (h in candidates.sortedWith(compareBy<Hairpin> { it.radiusM }.thenByDescending { it.turnDeg })) {
+            if (kept.none { abs(it.atM - h.atM) < minGapM }) kept += h
+        }
+        return kept.sortedBy { it.atM }
     }
 }

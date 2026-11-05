@@ -43,6 +43,16 @@ fun DrawScope.notEnoughMark(center: Offset, sizePx: Float, strokePx: Float, t: T
     drawCircle(t.muted, sizePx / 2 - strokePx / 2, center, style = Stroke(strokePx))
 }
 
+/**
+ * A hairpin on the road: a disc in the surface colour with an ink ring and the hairpin icon. Ink, not a status colour:
+ * it is about the road, not about what cars did there.
+ */
+fun DrawScope.hairpinMark(center: Offset, sizePx: Float, t: Tokens, ringPx: Float) {
+    drawCircle(t.surface, sizePx / 2, center)
+    drawCircle(t.ink, sizePx / 2 - ringPx / 2, center, style = Stroke(ringPx))
+    hairpinIcon(center, sizePx * 0.78f, t.ink)
+}
+
 /** An upward triangle with softened corners, centred on `c`, `s` wide. */
 private fun triangle(c: Offset, s: Float): Path {
     val h = s * 0.866f

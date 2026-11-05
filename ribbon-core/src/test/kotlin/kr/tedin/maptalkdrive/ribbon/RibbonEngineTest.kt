@@ -57,6 +57,13 @@ class RibbonEngineTest {
         assertEquals(15, RibbonEngine(listOf(mid)).states(k15, now).single().window!!.minutes)
     }
 
+    @Test fun `the window says when the latest car passed, rounded down to five minutes`() {
+        val ks = listOf(knot("M", "a", now - 5 * min - 37_000), knot("M", "b", now - 20 * min), knot("M", "c", now - 40 * min))
+        val w = RibbonEngine(listOf(mid)).states(ks, now).single().window!!
+        assertEquals(now - 10 * min, w.lastMs)
+        assertTrue(w.lastMs!! <= now - 5 * min - 37_000, "never fresher than the knot")
+    }
+
     @Test fun `knots from the future are ignored`() {
         val ks = listOf(knot("M", "a", now - min), knot("M", "b", now - min), knot("M", "c", now + 5 * min))
         assertEquals(RibbonStatus.NOT_ENOUGH, RibbonEngine(listOf(mid)).states(ks, now).single().status)

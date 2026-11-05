@@ -9,10 +9,23 @@
     <string name="preview_stop">Stop</string>
     <string name="tunnel_exit">%1$s exit</string>
     <string name="speed_camera">Speed camera</string>
-    <string name="nothing_unusual">Nothing unusual on this route</string>
+    <plurals name="all_usual">
+        <item quantity="one">The one place judged is as usual</item>
+        <item quantity="other">All %1$d places judged are as usual</item>
+    </plurals>
+    <string name="none_judged">Too few cars yet to judge this route</string>
     <string name="nothing_ahead">Nothing unusual ahead</string>
+    <string name="none_judged_ahead">Too few cars to judge the rest of the route</string>
     <string name="not_judged">%1$d places with too few cars, not judged</string>
-    <string name="minutes">%1$d min</string>
+    <string name="minutes">records of the last %1$d min</string>
+    <string name="count_cars">%1$d of %2$d</string>
+    <string name="count_cars_a11y">%1$d of %2$d cars</string>
+    <string name="usual_none">usually almost none</string>
+    <string name="usual_cars">usually ~%1$d of %2$d</string>
+    <string name="usual_value">usually %1$s</string>
+    <string name="last_car_recent">last car within 5 min</string>
+    <string name="last_car_min">last car %1$d min ago</string>
+    <string name="last_car_hour">last car %1$d h ago</string>
     <string name="soon">now</string>
     <string name="m_ahead">m</string>
     <string name="km_ahead">km</string>
@@ -23,11 +36,11 @@
     <string name="legend_curve">Curves</string>
     <string name="legend_sharp">Sharp curves</string>
     <string name="legend_tunnel">Tunnel</string>
+    <string name="legend_hairpin">Hairpin bend</string>
     <string name="legend_high">Clearly unusual</string>
     <string name="legend_some">Somewhat unusual</string>
     <string name="legend_usual">As usual</string>
     <string name="legend_not_enough">Too few cars</string>
-    <string name="legend_usual_tick">Usual</string>
 
     <!-- What was different -->
     <string name="issue_wiper">Wipers switched on</string>
@@ -37,6 +50,16 @@
     <string name="issue_stop">Stopped cars</string>
     <string name="issue_entry_decel">Sharp slowdown</string>
     <string name="issue_other">Unusual</string>
+
+    <!-- What it may mean: said as a possibility, the icons and counts are the evidence -->
+    <string name="meaning_rain">Possible rain</string>
+    <string name="meaning_fog">Possible fog</string>
+    <string name="meaning_holdup">Possible hold-up</string>
+    <string name="meaning_camera_brake">Sudden slowing at the camera</string>
+    <string name="meaning_exit_busy">Exit lane may be busy</string>
+    <string name="meaning_queue">Possible queue</string>
+    <string name="meaning_slow">Slower than usual</string>
+    <string name="meaning_other">Unusual</string>
 
     <!-- While driving -->
     <string name="recording">Recording ribbons</string>

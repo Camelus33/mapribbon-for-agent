@@ -91,8 +91,12 @@ enum class Deviation { NONE, SOME, HIGH }
 @Serializable
 data class AnchorRef(val id: String, val type: AnchorType, val dir: String, val name: String, val virtual: Boolean)
 
+/**
+ * The records a ribbon is based on: those of the `minutes` before `endMs`. `lastMs` is when the most recent car of them
+ * passed, rounded down to 5 minutes: it says how fresh the ribbon is without timing any one car.
+ */
 @Serializable
-data class Window(val endMs: Long, val minutes: Int)
+data class Window(val endMs: Long, val minutes: Int, val lastMs: Long? = null)
 
 /** Why a ribbon is "different": one metric compared with its own usual value and with neighbouring anchors. */
 @Serializable

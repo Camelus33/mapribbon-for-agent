@@ -7,10 +7,22 @@
     <string name="preview_stop">멈춤</string>
     <string name="tunnel_exit">%1$s 출구</string>
     <string name="speed_camera">단속카메라</string>
-    <string name="nothing_unusual">이 경로에 평소와 다른 곳 없음</string>
+    <plurals name="all_usual">
+        <item quantity="other">판단한 %1$d곳 모두 평소대로</item>
+    </plurals>
+    <string name="none_judged">차가 적어 아직 판단 못함</string>
     <string name="nothing_ahead">남은 길에 평소와 다른 곳 없음</string>
-    <string name="not_judged">차가 적어 판단하지 않은 곳 %1$d</string>
-    <string name="minutes">%1$d분</string>
+    <string name="none_judged_ahead">남은 길은 차가 적어 판단 못함</string>
+    <string name="not_judged">차가 적어 판단 못한 곳 %1$d</string>
+    <string name="minutes">최근 %1$d분 기록</string>
+    <string name="count_cars">%1$d/%2$d대</string>
+    <string name="count_cars_a11y">%2$d대 중 %1$d대</string>
+    <string name="usual_none">평소 거의 없음</string>
+    <string name="usual_cars">평소 약 %1$d/%2$d대</string>
+    <string name="usual_value">평소 %1$s</string>
+    <string name="last_car_recent">마지막 차 5분 안</string>
+    <string name="last_car_min">마지막 차 %1$d분 전</string>
+    <string name="last_car_hour">마지막 차 %1$d시간 전</string>
     <string name="soon">곧</string>
     <string name="m_ahead">m</string>
     <string name="km_ahead">km</string>
@@ -20,11 +32,11 @@
     <string name="legend_curve">굽은 길</string>
     <string name="legend_sharp">급커브</string>
     <string name="legend_tunnel">터널</string>
+    <string name="legend_hairpin">헤어핀 커브</string>
     <string name="legend_high">평소와 크게 다름</string>
     <string name="legend_some">평소와 조금 다름</string>
     <string name="legend_usual">평소대로</string>
     <string name="legend_not_enough">차가 적음</string>
-    <string name="legend_usual_tick">평소</string>
 
     <string name="issue_wiper">와이퍼 켬</string>
     <string name="issue_fog">안개등 켬</string>
@@ -33,6 +45,15 @@
     <string name="issue_stop">멈춘 차</string>
     <string name="issue_entry_decel">진입 급감속</string>
     <string name="issue_other">평소와 다름</string>
+
+    <string name="meaning_rain">비 가능성</string>
+    <string name="meaning_fog">안개 가능성</string>
+    <string name="meaning_holdup">정체나 장애물 가능성</string>
+    <string name="meaning_camera_brake">카메라 앞 급감속 흐름</string>
+    <string name="meaning_exit_busy">출구 차로 혼잡 가능성</string>
+    <string name="meaning_queue">정체 가능성</string>
+    <string name="meaning_slow">평소보다 느린 흐름</string>
+    <string name="meaning_other">평소와 다름</string>
 
     <string name="recording">리본 기록 중</string>
     <string name="recording_count">이번 주행에서 남긴 매듭 %1$d</string>

@@ -22,6 +22,8 @@ data class EngineConfig(
     val rateHigh: Double = 0.35,
     val kmhSome: Double = 10.0,
     val kmhHigh: Double = 20.0,
+    /** `Window.lastMs` is rounded down to this. */
+    val lastRoundMs: Long = 5 * 60_000L,
 )
 
 /**
@@ -52,7 +54,8 @@ class RibbonEngine(
             // One vote per vehicle: the latest knot of each pseudonym.
             val perVehicle = inWindow.groupBy { it.pseudonym }.values.map { ks -> ks.maxBy { it.exitedAtMs } }
             if (perVehicle.size >= cfg.minVehicles) {
-                return Snapshot(a, RibbonStatus.PUBLISHED, Window(nowMs, minutes), perVehicle.size, metricsOf(a.type, perVehicle))
+                val last = perVehicle.maxOf { it.exitedAtMs }.let { it - Math.floorMod(it, cfg.lastRoundMs) }
+                return Snapshot(a, RibbonStatus.PUBLISHED, Window(nowMs, minutes, last), perVehicle.size, metricsOf(a.type, perVehicle))
             }
         }
         val widest = cfg.windowsMin.last()
