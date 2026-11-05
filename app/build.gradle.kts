@@ -89,5 +89,5 @@ tasks.register<Copy>("submissionApk") {
     dependsOn("assembleRelease")
     from(layout.buildDirectory.file("outputs/apk/release/app-release.apk"))
     into(rootProject.layout.projectDirectory.dir("apk"))
-    rename { "Tedin_MaptalkDrive_release.apk" }
+    rename { "Tedin_MapRibbonForAgent_release.apk" }
 }

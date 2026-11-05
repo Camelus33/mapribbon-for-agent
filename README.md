@@ -1,4 +1,4 @@
-# 맵톡 드라이브 리본 (Maptalk Drive Ribbons)
+# MapRibbon for Agent
 
 **한 줄 설명**: 앞서 지나간 차들이 도로 시설물마다 남긴 기록을, 내 차가 경로를 정하는 순간 한 장의 화면으로 보여 주는 Pleos Connect 앱.
 
@@ -15,13 +15,13 @@
 
 ## APK 위치
 
-`apk/Tedin_MaptalkDrive_release.apk` (release 빌드, 서명됨)
+`apk/Tedin_MapRibbonForAgent_release.apk` (release 빌드, 서명됨)
 
 ## 실행 방법 (Pleos Connect 에뮬레이터)
 
 1. Pleos Connect v2.1.0 에뮬레이터를 **Cold boot**로 실행한다.
-2. 설치: `adb install -g apk/Tedin_MaptalkDrive_release.apk`
-3. 앱 목록에서 **맵톡 드라이브**를 연다. 위치·속도 권한을 허용한다.
+2. 설치: `adb install -g apk/Tedin_MapRibbonForAgent_release.apk`
+3. 앱 목록에서 **MapRibbon for Agent**를 연다. 위치·속도 권한을 허용한다.
 4. 오른쪽 위 **시연**을 누르고 `인제양양터널 너머 비, 서양양IC 직전 끼어들기`를 고른다.
    시뮬레이션 차 9대가 서울양양고속도로(인제IC → 양양JC, 34.5km)를 지나가며 리본을 채운다.
 5. 지도와 표에 세 곳이 표시된다: **인제양양터널 출구**(와이퍼 켠 차 9대 중 6대, 평소 3%), **서양양IC**(늦은 끼어들기 9대 중 4대, 평소 8%), **단속카메라**(급제동 8대 중 3대, 가상 카메라).
@@ -57,7 +57,7 @@ adb forward tcp:8088 tcp:8088
 
 ```
 ./gradlew :ribbon-core:test        # 핵심 로직 테스트 (실제 노선 끝-끝 포함)
-./gradlew :app:submissionApk       # apk/Tedin_MaptalkDrive_release.apk 생성
+./gradlew :app:submissionApk       # apk/Tedin_MapRibbonForAgent_release.apk 생성
 ```
 
 `keystore.properties`가 없으면 release 빌드는 debug 키로 서명된다. 출품 APK는 저장소 밖의 release 키로 서명했다.

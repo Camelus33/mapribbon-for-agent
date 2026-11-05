@@ -45,7 +45,7 @@ def card(name, lines):
 
 
 card('title', [
-    ('맵톡 드라이브 리본', 110, BOLD, INK, 150),
+    ('MapRibbon for Agent', 110, BOLD, INK, 150),
     ('앞서 지나간 차들이 도로 시설물마다 남긴 기록을,', 48, MED, INK, 66),
     ('경로를 정하는 순간 한 장의 화면으로 보여 준다.', 48, MED, INK, 150),
     ('Tedin · 현대자동차그룹 차량용 앱 개발 공모전', 34, REG, DIM, 52),
@@ -57,7 +57,7 @@ card('closing', [
     ('· 계정·차대번호 없음, 하루마다 바뀌는 익명 토큰만', 42, MED, INK, 64),
     ('· 날씨는 맥락, 한 지점에서만 달라질 때 "평소와 다름"', 42, MED, INK, 64),
     ('· 에뮬레이터 1배속 주행 CPU 약 2% · RSS 약 160MB', 42, MED, INK, 130),
-    ('Tedin Inc. · 맵톡 드라이브', 36, REG, DIM, 0),
+    ('Tedin Inc. · MapRibbon for Agent', 36, REG, DIM, 0),
 ])
 
 caption('c_empty', '시연 구간: 서울양양고속도로 인제IC → 양양JC 34.5 km', '실제 도로 모양을 출발(왼쪽 아래)에서 도착(오른쪽 위)으로 · 터널 14, 분기점 2, 단속카메라 2(가상) · 아직 기록 없음')
