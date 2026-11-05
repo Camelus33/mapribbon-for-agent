@@ -64,7 +64,7 @@ class CurvatureTest {
     }
 
     @Test fun `the demo expressway has no sharp curve and is mostly straight`() {
-        val r = RouteIndex.fromGeoJson(File("../app/src/main/assets/route.geojson").readText())
+        val r = RouteIndex.fromGeoJson(File("../app/src/main/assets/routes/SY60E/route.geojson").readText())
         val s = Curvature.stretches(r)
         assertTrue(s.none { it.curve == CurveClass.SHARP }, s.toString())
         val straight = s.filter { it.curve == CurveClass.STRAIGHT }.sumOf { it.lengthM }
@@ -72,5 +72,13 @@ class CurvatureTest {
         assertTrue(s.count { it.curve == CurveClass.CURVE } >= 3, s.toString())
         assertEquals(0.0, s.first().fromM); assertEquals(r.lengthM, s.last().toM, 1e-6)
         s.zipWithNext().forEach { (a, b) -> assertEquals(a.toM, b.fromM, 1e-6) }
+    }
+
+    @Test fun `the Hangyeryeong road has sharp curves, most of them on the pass`() {
+        val r = RouteIndex.fromGeoJson(File("../app/src/main/assets/routes/N44E/route.geojson").readText())
+        val s = Curvature.stretches(r)
+        val sharp = s.filter { it.curve == CurveClass.SHARP }
+        assertTrue(sharp.size >= 10, "sharp stretches: ${sharp.size}")
+        assertTrue(sharp.minOf { it.minRadiusM } < 150, sharp.toString())
     }
 }

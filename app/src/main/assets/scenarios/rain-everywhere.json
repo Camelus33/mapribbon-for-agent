@@ -1,6 +1,7 @@
 {
   "spec": "maptalk.scenario/1",
   "id": "rain-everywhere",
+  "routeId": "SY60E",
   "title": "대조군: 전 구간 비",
   "titleEn": "Control: rain along the whole route",
   "description": "9대 모두 처음부터 끝까지 와이퍼를 켠다. 도로 전체의 날씨이므로 어느 시설물도 \"평소와 다름\"이 되면 안 된다.",

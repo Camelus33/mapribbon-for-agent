@@ -19,6 +19,8 @@ data class Scenario(
     val title: String,
     val description: String,
     val titleEn: String? = null,
+    /** The route this scenario drives; scenarios written before there were two routes drive the expressway. */
+    val routeId: String = "SY60E",
     val vehicles: List<SimVehicle>,
 )
 

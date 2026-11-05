@@ -1,14 +1,15 @@
 // Builds the demo route and its road-facility anchors from OpenStreetMap.
-// Output (both derived from OSM, so both are ODbL): app/src/main/assets/route.geojson, app/src/main/assets/anchors.json
+// Output (both derived from OSM, so both are ODbL): app/src/main/assets/routes/SY60E/{route.geojson,anchors.json}
 // Usage: node tools/anchors/build-anchors.mjs   (Overpass answers are cached in tools/anchors/.cache)
 import { writeFile, mkdir } from 'node:fs/promises';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { overpass } from './lib/overpass.mjs';
 import { haversine, cumulative, nearestOnPath } from './lib/geo.mjs';
+import { english } from './lib/english.mjs';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
-const ASSETS = join(HERE, '../../app/src/main/assets');
+const ASSETS = join(HERE, '../../app/src/main/assets/routes/SY60E');
 const CACHE = join(HERE, '.cache');
 
 // Seoul–Yangyang Expressway (ref 60), eastbound from Inje IC to Yangyang JC.
@@ -159,31 +160,3 @@ function pointAt(path, cum, along) {
 }
 
 main().catch(err => { console.error(err.message); process.exit(1); });
-
-// English names for screens outside Korea. OSM name:en wins; otherwise the Korean name is romanised (Revised
-// Romanisation, syllable by syllable, no sound-change rules) and the facility word translated. A few names have a
-// published English form that romanisation cannot guess; they are listed here.
-const ENGLISH_OVERRIDES = { '인제양양터널': 'Inje-Yangyang Tunnel' };
-const SUFFIXES = [['터널', 'Tunnel'], ['분기점', 'JC'], ['나들목', 'IC'], ['요금소', 'Tollgate'], ['영업소', 'Tollgate'], ['IC', 'IC'], ['JC', 'JC'], ['TG', 'TG']];
-const INITIAL = ['g', 'kk', 'n', 'd', 'tt', 'r', 'm', 'b', 'pp', 's', 'ss', '', 'j', 'jj', 'ch', 'k', 't', 'p', 'h'];
-const MEDIAL = ['a', 'ae', 'ya', 'yae', 'eo', 'e', 'yeo', 'ye', 'o', 'wa', 'wae', 'oe', 'yo', 'u', 'wo', 'we', 'wi', 'yu', 'eu', 'ui', 'i'];
-const FINAL = ['', 'k', 'k', 'k', 'n', 'n', 'n', 't', 'l', 'k', 'm', 'l', 'l', 'l', 'p', 'l', 'm', 'p', 'p', 't', 't', 'ng', 't', 't', 'k', 't', 'p', 't'];
-
-function romanise(text) {
-  let out = '';
-  for (const ch of text) {
-    const code = ch.codePointAt(0) - 0xac00;
-    if (code < 0 || code > 11171) { out += ch; continue; }
-    out += INITIAL[Math.floor(code / 588)] + MEDIAL[Math.floor((code % 588) / 28)] + FINAL[code % 28];
-  }
-  return out.charAt(0).toUpperCase() + out.slice(1);
-}
-
-function english(name) {
-  if (ENGLISH_OVERRIDES[name]) return ENGLISH_OVERRIDES[name];
-  const [ko, en] = SUFFIXES.find(([k]) => name.endsWith(k)) ?? ['', ''];
-  const stem = name.slice(0, name.length - ko.length);
-  const m = stem.match(/^(.*?)(\d+)$/);
-  const words = m ? [romanise(m[1]), m[2]] : [romanise(stem)];
-  return [...words, en].filter(Boolean).join(' ');
-}

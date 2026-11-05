@@ -6,8 +6,21 @@
     {
       "name": "get_route_ribbons",
       "description": "Ribbons on the current route, one per road facility (tunnel, junction, toll gate, camera) in driving order. Each says whether the last 15 to 180 minutes of cars behaved differently from usual there (deviation NONE, SOME, HIGH), why (metric, value, usual value), and how many cars that is based on. Facilities with fewer than three cars are NOT_ENOUGH and must not be described as usual.",
-      "parameters": { "type": "object", "properties": {}, "additionalProperties": false },
-      "contentUri": "content://kr.tedin.maptalkdrive.ribbons/ribbons"
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "route": {
+            "type": "string",
+            "enum": [
+              "SY60E",
+              "N44E"
+            ],
+            "description": "Route id. Omit for the route on screen. SY60E: Seoul-Yangyang Expressway Inje IC to Yangyang JC. N44E: National Route 44 over Hangyeryeong Pass, Inje to Yangyang."
+          }
+        },
+        "additionalProperties": false
+      },
+      "contentUri": "content://kr.tedin.maptalkdrive.ribbons/ribbons?route={route}"
     },
     {
       "name": "get_next_unusual",
@@ -15,18 +28,45 @@
       "parameters": {
         "type": "object",
         "properties": {
-          "along_m": { "type": "number", "minimum": 0, "description": "Current position along the route, in metres from its start." }
+          "along_m": {
+            "type": "number",
+            "minimum": 0,
+            "description": "Current position along the route, in metres from its start."
+          },
+          "route": {
+            "type": "string",
+            "enum": [
+              "SY60E",
+              "N44E"
+            ],
+            "description": "Route id. Omit for the route on screen. SY60E: Seoul-Yangyang Expressway Inje IC to Yangyang JC. N44E: National Route 44 over Hangyeryeong Pass, Inje to Yangyang."
+          }
         },
-        "required": ["along_m"],
+        "required": [
+          "along_m"
+        ],
         "additionalProperties": false
       },
-      "contentUri": "content://kr.tedin.maptalkdrive.ribbons/next?along_m={along_m}"
+      "contentUri": "content://kr.tedin.maptalkdrive.ribbons/next?along_m={along_m}&route={route}"
     },
     {
       "name": "get_route_shape",
       "description": "How the route bends, cut into stretches of STRAIGHT (radius 2 km or more), CURVE (500 m to 2 km) and SHARP (under 500 m, slow down from 100 km/h) with the tightest radius of each, plus the facilities the ribbons hang on.",
-      "parameters": { "type": "object", "properties": {}, "additionalProperties": false },
-      "contentUri": "content://kr.tedin.maptalkdrive.ribbons/route"
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "route": {
+            "type": "string",
+            "enum": [
+              "SY60E",
+              "N44E"
+            ],
+            "description": "Route id. Omit for the route on screen. SY60E: Seoul-Yangyang Expressway Inje IC to Yangyang JC. N44E: National Route 44 over Hangyeryeong Pass, Inje to Yangyang."
+          }
+        },
+        "additionalProperties": false
+      },
+      "contentUri": "content://kr.tedin.maptalkdrive.ribbons/route?route={route}"
     }
   ]
 }

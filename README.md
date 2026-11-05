@@ -10,6 +10,7 @@
 - 매듭이 모이면 시설물마다 리본 상태(`maptalk.ribbon/1`)가 된다. 집계 창은 15분 → 1시간 → 3시간 순으로 넓히고, **서로 다른 차 3대 미만이면 공개하지 않는다.** 다른 에이전트(예: Gleo AI)는 [읽기 창구](#다른-에이전트가-읽는-법)로 리본을 가져간다.
 - **"평소와 다름"은 평소값보다도, 같은 길의 이웃 시설물보다도 높을 때만** 표시한다. 그래서 도로 전체에 비가 오면 아무것도 켜지지 않고, 한 터널 출구에서만 와이퍼가 켜지면 그 터널만 켜진다.
 - **내비를 대체하지 않는다. 사람이 보는 화면은 출발 전용이다.**
+  - 시연 코스는 두 개다. **서울양양고속도로** 인제IC → 양양JC(34.5 km)에는 급커브가 없다. **국도44호선 한계령** 인제 → 양양(51.2 km)은 고개를 넘는 24.8–37.3 km가 통째로 급커브다(가장 급한 곳은 반경 약 45 m). 출발지와 목적지가 같은 두 길이라 곡률 표시의 차이가 한눈에 보인다.
   - 경로 지도는 실제 도로 모양을 출발지(왼쪽 아래)에서 목적지(오른쪽 위)로 놓는다.
   - **도로가 얼마나 휘었는지를 선의 굵기와 진하기로 그린다.** 직선(반경 2 km 이상)은 가늘고 옅게, 굽은 길(500 m~2 km)은 굵고 진하게, 급커브(500 m 미만)는 가장 굵고 진하게 그린다. 반경은 경로 선형에서 계산한다(`ribbon-core` `geo/Curvature`).
   - 터널은 도로 밑에 옅은 띠로 깔린다.
@@ -38,6 +39,7 @@
 6. **미리 달리기**를 누르면 점이 경로를 달리며 다음 곳까지 남은 거리와 카드를 보여 준다.
 7. **시연 → 자세히**에는 마지막으로 쓴 매듭과 읽은 리본이 JSON 그대로 나온다.
 8. **시연**에서 `대조군: 전 구간 비`를 고르면 와이퍼 사용은 100%로 기록되지만 평소와 다른 곳은 0곳이다.
+9. **시연**에서 한계령 코스의 `한계령: 남설악터널 너머 안개, 내리막 카메라 앞 급제동`을 고르면 코스가 바뀐다. 고개 구간이 굵고 진한 급커브로 그려지고, **남설악터널 출구**(안개등 6/9, 평소 2%)와 **단속카메라**(급제동 3/9, 가상)가 표시된다.
 
 한 줄 명령으로도 재현된다.
 
@@ -66,6 +68,8 @@ adb forward tcp:8088 tcp:8088
 | `content://kr.tedin.maptalkdrive.ribbons/next?along_m=12000` | 그 위치 앞에서 처음 나오는 평소와 다른 곳과 거리 |
 | `content://kr.tedin.maptalkdrive.ribbons/route` | 경로의 굽은 정도와 시설물 (`maptalk.route/1`) |
 
+모든 URI는 화면에 띄운 코스를 기준으로 답한다. 다른 코스를 보려면 `?route=SY60E` 또는 `?route=N44E`를 붙인다(`next`는 `&route=`).
+
 AAOS에서는 운전자 사용자(에뮬레이터는 10번)로 물어야 같은 채널을 본다.
 
 ```
@@ -81,12 +85,12 @@ Gleo AI용 함수 세 개(`get_route_ribbons`, `get_next_unusual`, `get_route_sh
 | 에뮬레이터 | Pleos Connect v2.1.0 (API 34, arm64, Apple Silicon Mac, `-gpu host`) |
 | SDK | Pleos Vehicle 2.3.2, NaviHelper 3.0.5, FusedLocation 1.1.3 |
 | 빌드 | JDK 17, AGP 8.8.2, Kotlin 2.0.0, compileSdk/targetSdk 35, minSdk 28, Gradle 8.14.6 |
-| 성능 (에뮬레이터, release) | 경로 지도 정지 시 CPU 0%, 미리 달리기 중(약 30초) 12–23%, RSS 약 155MB |
+| 성능 (에뮬레이터, release) | 경로 지도 정지 시 CPU 0%, 미리 달리기 중(약 30초) 12–23%(한계령 16–20%), RSS 약 155–170MB |
 
 ## 빌드
 
 ```
-./gradlew :ribbon-core:test        # 핵심 로직 테스트 (실제 노선 끝-끝, 곡률 포함)
+./gradlew :ribbon-core:test        # 핵심 로직 테스트 29개 (두 실제 노선 끝-끝, 곡률 포함)
 ./gradlew :app:submissionApk       # apk/Tedin_MapRibbonForAgent_release.apk 생성
 ```
 
@@ -99,7 +103,7 @@ Gleo AI용 함수 세 개(`get_route_ribbons`, `get_next_unusual`, `get_route_sh
 | `ribbon-core/` | Android·Pleos에 의존하지 않는 Kotlin 라이브러리. 차량과 (향후) 서버가 같은 코드를 쓴다. `detect`(매듭), `agg`(리본·평소값·이웃 비교), `brief`(경로 브리핑), `geo`(경로 색인, 곡률), `pseudo`(익명 토큰), `spec`(규격), `demo`(시나리오) |
 | `app/` | AAOS 앱. `channel/`(기기 안의 리본 채널, 기록 서비스, 다른 에이전트용 ContentProvider), `adapter/`(Pleos Vehicle·FusedLocation·NaviHelper. 신호 하나가 실패해도 앱은 계속 동작), `ui/`(경로 지도, 아이콘, 기록 중 화면, 시연 시트, 색·글자 토큰), `res/values*/`(영어·한국어 문구) |
 | `app/src/main/assets/gleo/` | Gleo AI 함수 스키마 |
-| `tools/anchors/` | OSM에서 시연 노선과 시설물 추출(영어 이름 포함) → `app/src/main/assets/{route.geojson,anchors.json}` |
+| `tools/anchors/` | OSM에서 시연 노선과 시설물 추출(영어 이름 포함). `build-anchors.mjs`는 고속도로, `build-route44.mjs`는 한계령(일방통행 쌍을 고려한 최단 경로, 다른 번호 도로와 만나는 곳을 분기점으로) → `app/src/main/assets/routes/<id>/{route.geojson,anchors.json}` |
 | `tools/scenarios/` | 시연 시나리오와 평소값 생성 → `app/src/main/assets/{scenarios/,baseline.json}` |
 | `docs/` | 기획서 |
 
@@ -113,7 +117,7 @@ Gleo AI용 함수 세 개(`get_route_ribbons`, `get_next_unusual`, `get_route_sh
 
 | 실제 | 시뮬레이션 |
 |---|---|
-| 노선 형상과 곡률, 터널·분기점 위치(OSM) | 단속카메라 2곳("가상" 표시). OSM과 공공데이터에서 이 노선의 카메라를 확인하지 못했다 |
+| 노선 형상과 곡률, 터널·분기점 위치(OSM, 두 코스) | 단속카메라 3곳("가상" 표시: 고속도로 2, 한계령 1). OSM과 공공데이터에서 두 노선 위의 카메라를 확인하지 못했다 |
 | Pleos SDK 신호 수신(에뮬레이터 Virtual Console로 확인), 주행 중 전환과 기록 서비스 | 지나가는 차 9대와 그 신호, 평소값(`baseline.json`의 `simulated: true`) |
 
 앱 화면에는 **시뮬레이션 데이터** 배지가 항상 붙는다.
@@ -128,5 +132,5 @@ Gleo AI용 함수 세 개(`get_route_ribbons`, `get_next_unusual`, `get_route_sh
 
 ## 데이터 출처와 라이선스
 
-- 노선과 시설물: © OpenStreetMap contributors, ODbL 1.0 (https://www.openstreetmap.org/copyright). `app/src/main/assets/route.geojson`, `anchors.json`은 ODbL을 따른다.
+- 노선과 시설물: © OpenStreetMap contributors, ODbL 1.0 (https://www.openstreetmap.org/copyright). `app/src/main/assets/routes/` 아래 파일은 ODbL을 따른다.
 - 참고한 공공데이터: 전국무인교통단속카메라표준데이터, CCTV정보 표준데이터, 한국도로교통공단 교통사고 위험지역 (공공데이터포털)

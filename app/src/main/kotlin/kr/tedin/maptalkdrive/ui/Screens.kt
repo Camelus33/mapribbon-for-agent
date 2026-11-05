@@ -102,7 +102,8 @@ fun AppScreen(vm: RibbonViewModel, restricted: Boolean) {
 @Composable
 private fun BriefingScreen(vm: RibbonViewModel, s: ChannelState, preview: State<Double?>, t: Tokens, w: Words, onOpenDemo: () -> Unit) {
     val running by remember { derivedStateOf { preview.value != null } }
-    val set = vm.data.anchorSet
+    val r = vm.data.route(s.routeId)
+    val set = r.anchorSet
     val b = s.briefing
     val (start, end) = w.ends(set)
     Column(Modifier.fillMaxSize().padding(start = Gutter, end = Gutter, top = 32.dp, bottom = 24.dp)) {
@@ -130,7 +131,7 @@ private fun BriefingScreen(vm: RibbonViewModel, s: ChannelState, preview: State<
             var cardRect by remember(running) { mutableStateOf(Rect.Zero) }
             var listRect by remember { mutableStateOf(Rect.Zero) }
             RouteMap(
-                b, vm.data.route, vm.data.curves, start, end, t,
+                b, r.route, r.curves, start, end, t,
                 reserved = listOf(cardRect, listRect).filter { it != Rect.Zero },
                 preview = preview, modifier = Modifier.fillMaxSize(),
             )
@@ -144,7 +145,7 @@ private fun BriefingScreen(vm: RibbonViewModel, s: ChannelState, preview: State<
                     Counts(b, w, t)
                 }
                 Spacer(Modifier.height(24.dp))
-                Legend(b, vm.data.curves.map { it.curve }.toSet(), w, t)
+                Legend(b, r.curves.map { it.curve }.toSet(), w, t)
             }
             Box(Modifier.align(Alignment.BottomEnd).widthIn(max = 820.dp).onGloballyPositioned { listRect = it.boundsInParent() }) {
                 PlaceList(b.items.filter { it.different }.sortedWith(compareByDescending<BriefingItem> { it.state.deviation.ordinal }.thenBy { it.pointM }), w, t)
@@ -447,18 +448,23 @@ private fun DemoSheet(vm: RibbonViewModel, s: ChannelState, t: Tokens, w: Words,
             }
             Text(w.str(R.string.demo_hint), style = Type.caption, color = t.ink2)
             Column {
-                for (sc in vm.data.scenarios) {
-                    val selected = s.scenarioId == sc.id
-                    Box(Modifier.fillMaxWidth().height(1.dp).background(t.grid))
-                    Row(
-                        Modifier.fillMaxWidth().height(Touch).clickable(enabled = !s.replaying) { ch.runScenario(sc.id); onClose() },
-                        verticalAlignment = Alignment.CenterVertically,
-                    ) {
-                        Box(Modifier.width(4.dp).fillMaxHeight().padding(vertical = 12.dp).background(if (selected) t.ink else t.page))
-                        Spacer(Modifier.width(16.dp))
-                        Column(Modifier.weight(1f)) {
-                            Text(ch.scenarioTitle(sc.id), style = Type.caption, color = t.ink, maxLines = 1, overflow = TextOverflow.Ellipsis)
-                            Text(w.str(R.string.sim_cars, sc.vehicles.size), style = Type.caption, color = t.muted)
+                for (route in vm.data.routes) {
+                    val (from, to) = w.ends(route.anchorSet)
+                    // Scenarios are grouped under the route they drive; picking one also puts its route on screen.
+                    Text("$from → $to · ${Words.at(route.anchorSet.lengthM)}", style = Type.caption, color = t.muted, modifier = Modifier.padding(top = 12.dp, bottom = 4.dp))
+                    for (sc in vm.data.scenarios.filter { it.routeId == route.id }) {
+                        val selected = s.scenarioId == sc.id
+                        Box(Modifier.fillMaxWidth().height(1.dp).background(t.grid))
+                        Row(
+                            Modifier.fillMaxWidth().height(Touch).clickable(enabled = !s.replaying) { ch.runScenario(sc.id); onClose() },
+                            verticalAlignment = Alignment.CenterVertically,
+                        ) {
+                            Box(Modifier.width(4.dp).fillMaxHeight().padding(vertical = 12.dp).background(if (selected) t.ink else t.page))
+                            Spacer(Modifier.width(16.dp))
+                            Column(Modifier.weight(1f)) {
+                                Text(ch.scenarioTitle(sc.id), style = Type.caption, color = t.ink, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                                Text(w.str(R.string.sim_cars, sc.vehicles.size), style = Type.caption, color = t.muted)
+                            }
                         }
                     }
                 }

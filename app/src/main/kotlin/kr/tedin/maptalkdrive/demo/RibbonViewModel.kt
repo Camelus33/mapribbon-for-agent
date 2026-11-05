@@ -18,6 +18,8 @@ import kr.tedin.maptalkdrive.channel.RibbonChannel
 class RibbonViewModel(app: Application) : AndroidViewModel(app) {
     val channel = RibbonChannel.get(app)
     val data get() = channel.data
+    /** The route on screen. */
+    val current get() = channel.current
 
     private val _preview = MutableStateFlow<Double?>(null)
     /** Position of the preview run along the route in metres, or null when no preview is running. */
@@ -30,7 +32,7 @@ class RibbonViewModel(app: Application) : AndroidViewModel(app) {
      */
     fun startPreview(runMs: Long = 24_000, dwellMs: Long = 1_800) {
         stopPreview()
-        val length = data.route.lengthM
+        val length = current.route.lengthM
         previewJob = viewModelScope.launch {
             val stops = channel.state.value.briefing.items.filter { it.different }.map { it.pointM.toDouble() }.sorted()
             var along = 0.0

@@ -17,6 +17,7 @@ import kr.tedin.maptalkdrive.adapter.PleosLocationAdapter
 import kr.tedin.maptalkdrive.adapter.PleosNaviAdapter
 import kr.tedin.maptalkdrive.adapter.PleosVehicleAdapter
 import kr.tedin.maptalkdrive.demo.DemoData
+import kr.tedin.maptalkdrive.demo.RouteData
 import kr.tedin.maptalkdrive.port.NaviEvent
 import kr.tedin.maptalkdrive.ribbon.agg.Baseline
 import kr.tedin.maptalkdrive.ribbon.agg.RibbonEngine
@@ -32,6 +33,8 @@ import java.security.SecureRandom
 import java.time.LocalDate
 
 data class ChannelState(
+    /** The route on screen and the one this car records on. */
+    val routeId: String,
     val briefing: Briefing,
     val knotCount: Int = 0,
     val log: List<String> = emptyList(),
@@ -61,16 +64,18 @@ class RibbonChannel private constructor(context: Context) {
     val navi = PleosNaviAdapter(ctx)
 
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
-    private val anchors = data.anchorSet.anchors
-    private val engine = RibbonEngine(anchors, data.baseline)
+    private val engines = data.routes.associate { it.id to RibbonEngine(it.anchorSet.anchors, data.baseline) }
     private val knots = mutableListOf<Knot>()
     private val secret = deviceSecret(ctx)
     private var replayJob: Job? = null
     @Volatile private var recorder: PassDetector? = null
     private var portsStarted = false
 
-    private val _state = MutableStateFlow(ChannelState(briefing = briefingNow()))
+    private val _state = MutableStateFlow(data.routes.first().id.let { ChannelState(routeId = it, briefing = briefingFor(it)) })
     val state: StateFlow<ChannelState> = _state
+
+    /** The route on screen. */
+    val current: RouteData get() = data.route(_state.value.routeId)
 
     init {
         scope.launch {
@@ -105,16 +110,18 @@ class RibbonChannel private constructor(context: Context) {
     /** Lets the simulated cars of one scenario drive the route one after another, so the ribbons fill up on screen. */
     fun runScenario(id: String) {
         val scenario = data.scenarios.firstOrNull { it.id == id } ?: return
+        val r = data.route(scenario.routeId)
         replayJob?.cancel()
+        stopRecording()
         synchronized(knots) { knots.clear() }
-        _state.update { it.copy(scenarioId = id, replaying = true, replayDone = 0, replayTotal = scenario.vehicles.size, knotCount = 0, lastKnot = null, log = emptyList(), briefing = briefingNow()) }
+        _state.update { it.copy(routeId = r.id, scenarioId = id, replaying = true, replayDone = 0, replayTotal = scenario.vehicles.size, knotCount = 0, lastKnot = null, log = emptyList(), briefing = briefingFor(r.id)) }
         log(ctx.getString(R.string.log_scenario, scenarioTitle(scenario.id)))
         replayJob = scope.launch {
             val now = System.currentTimeMillis()
             for (v in scenario.vehicles.sortedByDescending { it.startMinutesAgo }) {
                 val produced = withContext(Dispatchers.Default) {
-                    val detector = PassDetector(data.route, anchors, pseudonym = v.id, widthClass = v.widthClass)
-                    ScenarioDrive.samples(v, data.route, anchors, startMs = now - v.startMinutesAgo * 60_000L)
+                    val detector = PassDetector(r.route, r.anchorSet.anchors, pseudonym = v.id, widthClass = v.widthClass)
+                    ScenarioDrive.samples(v, r.route, r.anchorSet.anchors, startMs = now - v.startMinutesAgo * 60_000L)
                         .flatMap { detector.accept(it) }.toList()
                 }
                 addKnots(produced, ctx.getString(R.string.log_sim_car, _state.value.replayDone + 1, v.startMinutesAgo))
@@ -123,6 +130,14 @@ class RibbonChannel private constructor(context: Context) {
             }
             _state.update { it.copy(replaying = false) }
         }
+    }
+
+    /** Shows another route. Its ribbons are whatever the channel holds for its anchors (nothing after a fresh start). */
+    fun selectRoute(id: String) {
+        val r = data.route(id)
+        if (r.id == _state.value.routeId) return
+        stopRecording()
+        _state.update { it.copy(routeId = r.id, scenarioId = null, briefing = briefingFor(r.id)) }
     }
 
     fun clear() {
@@ -134,7 +149,7 @@ class RibbonChannel private constructor(context: Context) {
     /** This car's agent starts tying knots from the car's own position and signals. */
     fun startRecording() {
         if (recorder != null) return
-        recorder = PassDetector(data.route, anchors, pseudonym = Pseudonym.forDay(secret, LocalDate.now(Baseline.SEOUL)))
+        recorder = PassDetector(current.route, current.anchorSet.anchors, pseudonym = Pseudonym.forDay(secret, LocalDate.now(Baseline.SEOUL)))
         _state.update { it.copy(recording = true, myKnots = 0) }
         log(ctx.getString(R.string.log_live_start, location.status.value.source))
         RecordService.start(ctx)
@@ -150,10 +165,10 @@ class RibbonChannel private constructor(context: Context) {
 
     fun dismissNotice() = _state.update { it.copy(naviNotice = null) }
 
-    /** The ribbons as of now, for agents that read the channel. */
-    fun ribbons(nowMs: Long = System.currentTimeMillis()): List<RibbonState> {
+    /** The ribbons of one route as of now, for the screen and for agents that read the channel. */
+    fun ribbons(routeId: String = _state.value.routeId, nowMs: Long = System.currentTimeMillis()): List<RibbonState> {
         val snapshot = synchronized(knots) { knots.toList() }
-        return engine.states(snapshot, nowMs)
+        return engines.getValue(data.route(routeId).id).states(snapshot, nowMs)
     }
 
     fun scenarioTitle(id: String): String {
@@ -168,7 +183,9 @@ class RibbonChannel private constructor(context: Context) {
         log(ctx.getString(R.string.log_knots, who, new.size))
     }
 
-    private fun briefingNow(): Briefing = Briefing.build(anchors, ribbons())
+    private fun briefingNow(): Briefing = briefingFor(_state.value.routeId)
+
+    private fun briefingFor(routeId: String): Briefing = Briefing.build(data.route(routeId).anchorSet.anchors, ribbons(routeId))
 
     private fun log(line: String) = _state.update { it.copy(log = (listOf(line) + it.log).take(40)) }
 

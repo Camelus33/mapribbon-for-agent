@@ -1,0 +1,140 @@
+{
+  "spec": "maptalk.scenario/1",
+  "id": "hangyeryeong-fog",
+  "routeId": "N44E",
+  "title": "한계령: 남설악터널 너머 안개, 내리막 카메라 앞 급제동",
+  "titleEn": "Hangyeryeong: fog past the Namseorak Tunnel, hard braking at the camera downhill",
+  "description": "고개를 넘은 뒤 9대 중 6대가 남설악터널 출구에서 안개등을 켜고, 3대가 내리막 가상 단속카메라 앞에서 급제동한다.",
+  "vehicles": [
+    {
+      "id": "sim-1",
+      "startMinutesAgo": 70,
+      "kmh": 56,
+      "widthClass": "MEDIUM",
+      "segments": [
+        {
+          "fromM": 48067,
+          "toM": 50537,
+          "fog": true
+        },
+        {
+          "fromM": 37715,
+          "toM": 37915,
+          "kmh": 32
+        },
+        {
+          "fromM": 37705,
+          "toM": 37795,
+          "brake": true
+        }
+      ]
+    },
+    {
+      "id": "sim-2",
+      "startMinutesAgo": 73,
+      "kmh": 58,
+      "widthClass": "WIDE",
+      "segments": [
+        {
+          "fromM": 48067,
+          "toM": 50537,
+          "fog": true
+        }
+      ]
+    },
+    {
+      "id": "sim-3",
+      "startMinutesAgo": 76,
+      "kmh": 60,
+      "widthClass": "MEDIUM",
+      "segments": [
+        {
+          "fromM": 48067,
+          "toM": 50537,
+          "fog": true
+        }
+      ]
+    },
+    {
+      "id": "sim-4",
+      "startMinutesAgo": 79,
+      "kmh": 62,
+      "widthClass": "NARROW",
+      "segments": [
+        {
+          "fromM": 48067,
+          "toM": 50537,
+          "fog": true
+        },
+        {
+          "fromM": 37715,
+          "toM": 37915,
+          "kmh": 32
+        },
+        {
+          "fromM": 37705,
+          "toM": 37795,
+          "brake": true
+        }
+      ]
+    },
+    {
+      "id": "sim-5",
+      "startMinutesAgo": 82,
+      "kmh": 56,
+      "widthClass": "MEDIUM",
+      "segments": [
+        {
+          "fromM": 48067,
+          "toM": 50537,
+          "fog": true
+        }
+      ]
+    },
+    {
+      "id": "sim-6",
+      "startMinutesAgo": 85,
+      "kmh": 58,
+      "widthClass": "WIDE",
+      "segments": [
+        {
+          "fromM": 48067,
+          "toM": 50537,
+          "fog": true
+        }
+      ]
+    },
+    {
+      "id": "sim-7",
+      "startMinutesAgo": 88,
+      "kmh": 60,
+      "widthClass": "MEDIUM",
+      "segments": [
+        {
+          "fromM": 37715,
+          "toM": 37915,
+          "kmh": 32
+        },
+        {
+          "fromM": 37705,
+          "toM": 37795,
+          "brake": true
+        }
+      ]
+    },
+    {
+      "id": "sim-8",
+      "startMinutesAgo": 91,
+      "kmh": 62,
+      "widthClass": "MEDIUM",
+      "segments": []
+    },
+    {
+      "id": "sim-9",
+      "startMinutesAgo": 94,
+      "kmh": 56,
+      "widthClass": "NARROW",
+      "segments": []
+    }
+  ]
+}

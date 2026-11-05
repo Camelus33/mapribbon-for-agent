@@ -22,13 +22,16 @@ import kotlin.test.assertTrue
 /** End to end on the real demo assets: simulated cars → detector → engine → briefing, exactly as the app runs it. */
 class DemoRouteTest {
     private val assets = File("../app/src/main/assets")
-    private val anchorSet = RibbonJson.decodeFromString<AnchorSet>(File(assets, "anchors.json").readText())
-    private val route = RouteIndex.fromGeoJson(File(assets, "route.geojson").readText())
+    private fun anchorsOf(routeId: String) = RibbonJson.decodeFromString<AnchorSet>(File(assets, "routes/$routeId/anchors.json").readText())
+    private fun routeOf(routeId: String) = RouteIndex.fromGeoJson(File(assets, "routes/$routeId/route.geojson").readText())
+    private val anchorSet = anchorsOf("SY60E")
     private val baseline = RibbonJson.decodeFromString<Baseline>(File(assets, "baseline.json").readText())
     private val now = 1_799_990_000_000L
 
     private fun run(name: String): Pair<List<Knot>, Map<String, RibbonState>> {
         val scenario = RibbonJson.decodeFromString<Scenario>(File(assets, "scenarios/$name.json").readText())
+        val anchorSet = anchorsOf(scenario.routeId)
+        val route = routeOf(scenario.routeId)
         val knots = scenario.vehicles.flatMap { v ->
             val detector = PassDetector(route, anchorSet.anchors, pseudonym = v.id, widthClass = v.widthClass)
             ScenarioDrive.samples(v, route, anchorSet.anchors, startMs = now - v.startMinutesAgo * 60_000L)
@@ -69,5 +72,18 @@ class DemoRouteTest {
         assertTrue(s.values.all { it.status == RibbonStatus.PUBLISHED }, "every anchor has nine cars")
         assertTrue(s.values.all { it.deviation == Deviation.NONE }, s.values.filter { it.deviation != Deviation.NONE }.joinToString { it.gist })
         assertTrue(s.values.all { it.metrics[Metric.WIPER_ON_RATE] == 1.0 })
+    }
+
+    @Test fun `on the Hangyeryeong road fog past the tunnel and braking downhill light up, the valley junctions do not`() {
+        val (knots, s) = run("hangyeryeong-fog")
+        val set = anchorsOf("N44E")
+        assertEquals(9 * set.anchors.size, knots.size, knots.groupBy { it.anchorId }.mapValues { it.value.size }.toString())
+        val tunnel = s.getValue("남설악터널")
+        assertEquals(Deviation.HIGH, tunnel.deviation, tunnel.gist)
+        assertEquals(Metric.FOG_TURNED_ON_RATE, tunnel.reasons.first().metric)
+        val camera = s.values.single { it.anchor.type == kr.tedin.maptalkdrive.ribbon.spec.AnchorType.CAMERA }
+        assertEquals(Metric.HARD_BRAKE_RATE, camera.reasons.firstOrNull()?.metric, camera.gist)
+        val different = s.values.filter { it.deviation != Deviation.NONE }.map { it.anchor.id }.sorted()
+        assertEquals(listOf("N44E-C01", "N44E-T01"), different)
     }
 }

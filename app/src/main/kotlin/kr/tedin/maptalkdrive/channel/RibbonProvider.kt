@@ -22,6 +22,8 @@ import kr.tedin.maptalkdrive.ribbon.spec.RouteBrief
  * - `content://kr.tedin.maptalkdrive.ribbons/next?along_m=12000`   the next facility ahead that is different from usual
  * - `content://kr.tedin.maptalkdrive.ribbons/route`                how the route bends, and its facilities
  *
+ * Each answers for the route on screen; add `?route=<routeId>` (SY60E, N44E) for another.
+ *
  * Ribbons are aggregates of at least three cars with no identities in them, so the provider needs no permission.
  */
 class RibbonProvider : ContentProvider() {
@@ -36,22 +38,26 @@ class RibbonProvider : ContentProvider() {
 
     override fun query(uri: Uri, projection: Array<out String>?, selection: String?, selectionArgs: Array<out String>?, sortOrder: String?): Cursor {
         val channel = RibbonChannel.get(context!!)
-        val anchors = channel.data.anchorSet.anchors
+        // The route on screen by default; `?route=N44E` reads another one.
+        val r = uri.getQueryParameter("route")?.takeIf { it.isNotBlank() }?.let { id -> channel.data.routes.firstOrNull { it.id == id } ?: throw IllegalArgumentException("unknown route $id") }
+            ?: channel.current
+        val anchors = r.anchorSet.anchors
+        val ribbons = channel.ribbons(r.id)
         return when (matcher.match(uri)) {
-            RIBBONS -> ribbonCursor(Briefing.build(anchors, channel.ribbons()).items.map { it to null })
+            RIBBONS -> ribbonCursor(Briefing.build(anchors, ribbons).items.map { it to null })
             RIBBON -> {
                 val id = uri.lastPathSegment
-                ribbonCursor(Briefing.build(anchors, channel.ribbons()).items.filter { it.anchor.id == id }.map { it to null })
+                ribbonCursor(Briefing.build(anchors, ribbons).items.filter { it.anchor.id == id }.map { it to null })
             }
             NEXT -> {
                 val along = uri.getQueryParameter("along_m")?.toDoubleOrNull() ?: 0.0
-                ribbonCursor(listOfNotNull(Briefing.build(anchors, channel.ribbons()).nextDifferentAhead(along)))
+                ribbonCursor(listOfNotNull(Briefing.build(anchors, ribbons).nextDifferentAhead(along)))
             }
             ROUTE -> {
-                val set = channel.data.anchorSet
+                val set = r.anchorSet
                 val brief = RouteBrief(
                     routeId = set.routeId, routeName = set.routeName, lengthM = set.lengthM, attribution = set.attribution,
-                    curves = channel.data.curves,
+                    curves = r.curves,
                     anchors = set.anchors.sortedBy { it.alongM }.map { AnchorRef(it.id, it.type, it.dir, it.name, it.virtual) },
                 )
                 MatrixCursor(arrayOf("route_id", "name", "length_m", "json")).apply {
