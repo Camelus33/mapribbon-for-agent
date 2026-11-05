@@ -1,0 +1,125 @@
+{
+  "spec": "maptalk.scenario/1",
+  "id": "rain-everywhere",
+  "title": "대조군: 전 구간 비",
+  "description": "9대 모두 처음부터 끝까지 와이퍼를 켠다. 도로 전체의 날씨이므로 어느 시설물도 \"평소와 다름\"이 되면 안 된다.",
+  "vehicles": [
+    {
+      "id": "sim-1",
+      "startMinutesAgo": 34,
+      "kmh": 88,
+      "widthClass": "MEDIUM",
+      "segments": [
+        {
+          "fromM": 0,
+          "toM": 34508,
+          "wiper": true
+        }
+      ]
+    },
+    {
+      "id": "sim-2",
+      "startMinutesAgo": 38,
+      "kmh": 90,
+      "widthClass": "WIDE",
+      "segments": [
+        {
+          "fromM": 0,
+          "toM": 34508,
+          "wiper": true
+        }
+      ]
+    },
+    {
+      "id": "sim-3",
+      "startMinutesAgo": 42,
+      "kmh": 92,
+      "widthClass": "MEDIUM",
+      "segments": [
+        {
+          "fromM": 0,
+          "toM": 34508,
+          "wiper": true
+        }
+      ]
+    },
+    {
+      "id": "sim-4",
+      "startMinutesAgo": 46,
+      "kmh": 94,
+      "widthClass": "NARROW",
+      "segments": [
+        {
+          "fromM": 0,
+          "toM": 34508,
+          "wiper": true
+        }
+      ]
+    },
+    {
+      "id": "sim-5",
+      "startMinutesAgo": 50,
+      "kmh": 88,
+      "widthClass": "MEDIUM",
+      "segments": [
+        {
+          "fromM": 0,
+          "toM": 34508,
+          "wiper": true
+        }
+      ]
+    },
+    {
+      "id": "sim-6",
+      "startMinutesAgo": 54,
+      "kmh": 90,
+      "widthClass": "WIDE",
+      "segments": [
+        {
+          "fromM": 0,
+          "toM": 34508,
+          "wiper": true
+        }
+      ]
+    },
+    {
+      "id": "sim-7",
+      "startMinutesAgo": 58,
+      "kmh": 92,
+      "widthClass": "MEDIUM",
+      "segments": [
+        {
+          "fromM": 0,
+          "toM": 34508,
+          "wiper": true
+        }
+      ]
+    },
+    {
+      "id": "sim-8",
+      "startMinutesAgo": 62,
+      "kmh": 94,
+      "widthClass": "MEDIUM",
+      "segments": [
+        {
+          "fromM": 0,
+          "toM": 34508,
+          "wiper": true
+        }
+      ]
+    },
+    {
+      "id": "sim-9",
+      "startMinutesAgo": 66,
+      "kmh": 88,
+      "widthClass": "NARROW",
+      "segments": [
+        {
+          "fromM": 0,
+          "toM": 34508,
+          "wiper": true
+        }
+      ]
+    }
+  ]
+}

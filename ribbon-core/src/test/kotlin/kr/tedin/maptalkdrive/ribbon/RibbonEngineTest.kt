@@ -117,16 +117,17 @@ class RibbonEngineTest {
         val states = RibbonEngine(anchors, usual).states(localRain(), now)
         val b = Briefing.build(anchors, states)
         assertEquals("M", b.headline!!.anchor.id)
-        // East of the middle tunnel it rains: E shows more wiper use than usual (SOME), M shows the switch (HIGH).
-        assertEquals(listOf("M" to Deviation.HIGH, "E" to Deviation.SOME), b.items.filter { it.different }.map { it.anchor.id to it.state.deviation })
+        // East of the middle tunnel it rains. Only M, where wipers switch on, is different; E's wiper use is weather.
+        assertEquals(listOf("M" to Deviation.HIGH), b.items.filter { it.different }.map { it.anchor.id to it.state.deviation })
+        assertEquals(0.667, b.items.first { it.anchor.id == "E" }.state.metrics[Metric.WIPER_ON_RATE], "E still reports the rain as context")
         assertEquals(1, b.notEnoughCount)
         assertEquals(4, b.items.size)
-        assertEquals(listOf("M", "E"), b.labeled.map { it.anchor.id })
+        assertEquals(listOf("M"), b.labeled.map { it.anchor.id })
         val (next, dist) = b.nextDifferentAhead(5_000.0)!!
         assertEquals("M", next.anchor.id)
-        assertEquals(3_000.0, dist)
-        assertEquals("E", b.nextDifferentAhead(13_000.0)!!.first.anchor.id)
-        assertNull(b.nextDifferentAhead(16_500.0), "nothing different left after the last tunnel")
+        assertEquals(7_000.0, dist, "distance runs to the tunnel exit at 12 km")
+        assertEquals(2_000.0, b.nextDifferentAhead(10_000.0)!!.second, "inside the tunnel the exit is still ahead")
+        assertNull(b.nextDifferentAhead(13_000.0), "nothing different left after the middle tunnel")
     }
 
     @Test fun `pseudonyms are stable within a day and unlinkable across days`() {

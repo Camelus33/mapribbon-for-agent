@@ -93,7 +93,7 @@ class RibbonEngine(
                 abs(it.anchor.alongM - s.anchor.alongM) <= cfg.neighborRadiusM
         }
         val reasons = s.metrics.mapNotNull { (k, v) ->
-            if (k == Metric.SPEED_AT_KMH) return@mapNotNull null // context only, not a "difference"
+            if (k in CONTEXT_ONLY) return@mapNotNull null
             val near = median(neighbors.mapNotNull { it.metrics[k] })
             val level = levelOf(k, v, usual[k], near)
             if (level == Deviation.NONE) null else Reason(k, v, usual[k], near?.let(::round3), level)
@@ -131,6 +131,12 @@ class RibbonEngine(
         return (r.value - ref) / scale
     }
 }
+
+/**
+ * Published for context but never a "difference": speed is not news, and wiper use is weather, which lights up a whole
+ * region at once. A change of weather at one place shows up as wipers switching on there (WIPER_TURNED_ON_RATE).
+ */
+private val CONTEXT_ONLY = setOf(Metric.SPEED_AT_KMH, Metric.WIPER_ON_RATE)
 
 internal fun median(xs: List<Double>): Double? {
     if (xs.isEmpty()) return null

@@ -1,12 +1,16 @@
 package kr.tedin.maptalkdrive.ribbon.brief
 
 import kr.tedin.maptalkdrive.ribbon.spec.Anchor
+import kr.tedin.maptalkdrive.ribbon.spec.AnchorType
 import kr.tedin.maptalkdrive.ribbon.spec.Deviation
 import kr.tedin.maptalkdrive.ribbon.spec.RibbonState
 import kr.tedin.maptalkdrive.ribbon.spec.RibbonStatus
 
 data class BriefingItem(val anchor: Anchor, val state: RibbonState) {
     val different: Boolean get() = state.status == RibbonStatus.PUBLISHED && state.deviation != Deviation.NONE
+
+    /** The point a driver should mind: a tunnel's exit (where the open road comes back), any other facility itself. */
+    val pointM: Int get() = if (anchor.type == AnchorType.TUNNEL) anchor.endAlongM else anchor.alongM
 }
 
 /**
@@ -21,10 +25,10 @@ data class Briefing(
     val differentCount: Int get() = items.count { it.different }
     val notEnoughCount: Int get() = items.count { it.state.status == RibbonStatus.NOT_ENOUGH }
 
-    /** The next anchor ahead that is different from usual, and the distance to where it starts. */
+    /** The next anchor ahead that is different from usual, and the distance to its point (a tunnel's exit). */
     fun nextDifferentAhead(alongM: Double): Pair<BriefingItem, Double>? =
-        items.firstOrNull { it.different && it.anchor.endAlongM > alongM }
-            ?.let { it to maxOf(0.0, it.anchor.alongM - alongM) }
+        items.filter { it.different && it.pointM > alongM }.minByOrNull { it.pointM }
+            ?.let { it to it.pointM - alongM }
 
     companion object {
         const val MAX_LABELS = 3

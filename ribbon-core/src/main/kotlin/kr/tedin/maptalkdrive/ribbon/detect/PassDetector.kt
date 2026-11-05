@@ -62,7 +62,8 @@ class PassDetector(
     private var lastAlong: Double? = null
     private var lastFixT: Long? = null
     private var lastT: Long? = null
-    private val closeAtM = route.lengthM - 5
+    /** Zones running past the end of the route close here (about one second of driving before the end). */
+    private val closeAtM = route.lengthM - 30
 
     fun accept(s: Sample): List<Knot> {
         lastT?.let { if (s.tMs - it > cfg.maxGapMs) reset() }
@@ -70,6 +71,7 @@ class PassDetector(
 
         var along: Double? = null
         var speed = s.speedKmh
+        val trackedBefore = lastAlong // last fix on this route, if we have been following the car
         if (s.fix != null) {
             val snap = route.snap(s.fix)
             if (snap.distanceM > cfg.maxOffRouteM) { reset(); return emptyList() }
@@ -86,9 +88,11 @@ class PassDetector(
 
         if (along != null) {
             for (a in anchors) {
-                if (a.id !in open && along >= a.zoneStartM && along <= minOf(a.zoneStartM + cfg.entrySlackM, a.zoneEndM.toDouble(), closeAtM)) {
-                    open[a.id] = mutableListOf()
-                }
+                if (a.id in open || along < a.zoneStartM || along > minOf(a.zoneEndM.toDouble(), closeAtM)) continue
+                // Crossing the zone start while tracked counts even across a gap without fixes (the zone may begin
+                // inside the previous tunnel). Without a previous fix, only a start close to the zone start counts.
+                val entered = if (trackedBefore != null) trackedBefore < a.zoneStartM else along <= a.zoneStartM + cfg.entrySlackM
+                if (entered) open[a.id] = mutableListOf()
             }
         }
 

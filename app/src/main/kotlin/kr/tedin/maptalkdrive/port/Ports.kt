@@ -1,0 +1,50 @@
+package kr.tedin.maptalkdrive.port
+
+import kotlinx.coroutines.flow.SharedFlow
+import kotlinx.coroutines.flow.StateFlow
+import kr.tedin.maptalkdrive.ribbon.detect.TurnSignal
+
+enum class Gear { PARK, REVERSE, NEUTRAL, DRIVE, UNKNOWN }
+
+/** The vehicle signals a knot is made of. Nulls mean "this car or platform does not report it". */
+data class VehicleSignals(
+    val brake: Boolean = false,
+    val turnSignal: TurnSignal = TurnSignal.OFF,
+    val wheelAngleDeg: Double? = null,
+    val wiper: Boolean = false,
+    val fogLight: Boolean = false,
+    val gear: Gear = Gear.UNKNOWN,
+    val speedKmh: Double? = null,
+)
+
+data class Fix(val tMs: Long, val lat: Double, val lon: Double)
+
+/** Where a port's data comes from right now, shown on screen so a demo never passes simulation off as the car. */
+data class PortStatus(val source: String, val live: Boolean, val note: String? = null)
+
+interface VehiclePort {
+    val signals: StateFlow<VehicleSignals>
+    val status: StateFlow<PortStatus>
+    fun start()
+    fun stop()
+}
+
+interface LocationPort {
+    val fixes: SharedFlow<Fix>
+    val status: StateFlow<PortStatus>
+    fun start()
+    fun stop()
+}
+
+sealed interface NaviEvent {
+    data class RouteStarted(val name: String?, val distanceM: Int) : NaviEvent
+    data object Arrived : NaviEvent
+    data object Cancelled : NaviEvent
+}
+
+interface NaviPort {
+    val events: SharedFlow<NaviEvent>
+    val status: StateFlow<PortStatus>
+    fun start()
+    fun stop()
+}

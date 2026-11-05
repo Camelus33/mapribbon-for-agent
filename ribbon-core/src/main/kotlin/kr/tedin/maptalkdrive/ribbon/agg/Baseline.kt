@@ -12,6 +12,8 @@ import java.time.ZoneId
 data class Baseline(
     val spec: String = "maptalk.baseline/1",
     val weeks: Int = 4,
+    /** True for the generated demo baseline; the app labels anything derived from it as simulation. */
+    val simulated: Boolean = false,
     /** anchorId -> hour "0".."23" -> metric -> value */
     val values: Map<String, Map<String, Map<String, Double>>> = emptyMap(),
 ) {

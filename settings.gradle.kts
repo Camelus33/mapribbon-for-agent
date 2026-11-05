@@ -16,4 +16,4 @@ dependencyResolutionManagement {
 }
 
 rootProject.name = "maptalk-drive"
-include(":ribbon-core")
+include(":ribbon-core", ":app")

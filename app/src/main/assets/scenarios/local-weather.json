@@ -1,0 +1,184 @@
+{
+  "spec": "maptalk.scenario/1",
+  "id": "local-weather",
+  "title": "인제양양터널 너머 비, 서양양IC 직전 끼어들기",
+  "description": "영서는 맑고 영동은 비. 9대 중 6대가 인제양양터널 출구에서 와이퍼를 켜고 3대는 안개등도 켠다. 4대가 서양양IC 300m 안에서 방향지시등을 켜고, 3대가 가상 단속카메라 앞에서 급제동한다.",
+  "vehicles": [
+    {
+      "id": "sim-1",
+      "startMinutesAgo": 34,
+      "kmh": 92,
+      "widthClass": "MEDIUM",
+      "segments": [
+        {
+          "fromM": 23015,
+          "toM": 34508,
+          "wiper": true
+        },
+        {
+          "fromM": 23015,
+          "toM": 25985,
+          "fog": true
+        },
+        {
+          "fromM": 7702,
+          "toM": 7902,
+          "kmh": 62
+        },
+        {
+          "fromM": 7692,
+          "toM": 7782,
+          "brake": true
+        }
+      ]
+    },
+    {
+      "id": "sim-2",
+      "startMinutesAgo": 38,
+      "kmh": 94,
+      "widthClass": "WIDE",
+      "segments": [
+        {
+          "fromM": 23015,
+          "toM": 34508,
+          "wiper": true
+        },
+        {
+          "fromM": 23015,
+          "toM": 25985,
+          "fog": true
+        }
+      ]
+    },
+    {
+      "id": "sim-3",
+      "startMinutesAgo": 42,
+      "kmh": 96,
+      "widthClass": "MEDIUM",
+      "segments": [
+        {
+          "fromM": 23015,
+          "toM": 34508,
+          "wiper": true
+        },
+        {
+          "fromM": 23015,
+          "toM": 25985,
+          "fog": true
+        },
+        {
+          "fromM": 24179,
+          "toM": 24449,
+          "turn": "RIGHT"
+        }
+      ]
+    },
+    {
+      "id": "sim-4",
+      "startMinutesAgo": 46,
+      "kmh": 98,
+      "widthClass": "NARROW",
+      "segments": [
+        {
+          "fromM": 23015,
+          "toM": 34508,
+          "wiper": true
+        },
+        {
+          "fromM": 24179,
+          "toM": 24449,
+          "turn": "RIGHT"
+        },
+        {
+          "fromM": 7702,
+          "toM": 7902,
+          "kmh": 62
+        },
+        {
+          "fromM": 7692,
+          "toM": 7782,
+          "brake": true
+        }
+      ]
+    },
+    {
+      "id": "sim-5",
+      "startMinutesAgo": 50,
+      "kmh": 92,
+      "widthClass": "MEDIUM",
+      "segments": [
+        {
+          "fromM": 23015,
+          "toM": 34508,
+          "wiper": true
+        },
+        {
+          "fromM": 24179,
+          "toM": 24449,
+          "turn": "RIGHT"
+        }
+      ]
+    },
+    {
+      "id": "sim-6",
+      "startMinutesAgo": 54,
+      "kmh": 94,
+      "widthClass": "WIDE",
+      "segments": [
+        {
+          "fromM": 23015,
+          "toM": 34508,
+          "wiper": true
+        },
+        {
+          "fromM": 24179,
+          "toM": 24449,
+          "turn": "RIGHT"
+        }
+      ]
+    },
+    {
+      "id": "sim-7",
+      "startMinutesAgo": 58,
+      "kmh": 96,
+      "widthClass": "MEDIUM",
+      "segments": [
+        {
+          "fromM": 23299,
+          "toM": 24449,
+          "turn": "RIGHT"
+        },
+        {
+          "fromM": 7702,
+          "toM": 7902,
+          "kmh": 62
+        },
+        {
+          "fromM": 7692,
+          "toM": 7782,
+          "brake": true
+        }
+      ]
+    },
+    {
+      "id": "sim-8",
+      "startMinutesAgo": 62,
+      "kmh": 98,
+      "widthClass": "MEDIUM",
+      "segments": [
+        {
+          "fromM": 23299,
+          "toM": 24449,
+          "turn": "RIGHT"
+        }
+      ]
+    },
+    {
+      "id": "sim-9",
+      "startMinutesAgo": 66,
+      "kmh": 92,
+      "widthClass": "NARROW",
+      "segments": []
+    }
+  ]
+}
