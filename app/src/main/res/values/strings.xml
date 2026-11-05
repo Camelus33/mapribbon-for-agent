@@ -70,6 +70,15 @@
     <string name="meaning_slow">Slower than usual</string>
     <string name="meaning_other">Unusual</string>
 
+    <!-- Where to take care: the title of the list and what a careful driver does there -->
+    <string name="caution_title">Take care here</string>
+    <string name="all_places">All %1$d unusual places</string>
+    <string name="action_slow">Slow down early</string>
+    <string name="action_distance">Keep your distance</string>
+    <string name="action_smooth">No sudden braking or steering</string>
+    <string name="action_lane">Pick your lane early</string>
+    <string name="action_lights">Lights on</string>
+
     <!-- While driving -->
     <string name="recording">Recording ribbons</string>
     <string name="recording_count">Knots tied on this drive: %1$d</string>

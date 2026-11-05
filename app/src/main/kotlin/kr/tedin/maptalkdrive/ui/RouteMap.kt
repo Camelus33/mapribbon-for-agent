@@ -122,8 +122,9 @@ const val StretchAlpha = 0.45f
 
 /**
  * Parked, before departure: the road from bottom-left to top-right, drawn by how it bends. Tunnels are a quiet band
- * under the road, usual facilities short ticks across it, different ones status marks with an icon chip beside them
- * (what was different and how many cars), never over the road, another chip or a `reserved` area.
+ * under the road, usual facilities short ticks across it, different ones status marks. The cautions (`chipSpecs`) get a
+ * numbered chip beside their mark (number, what was different, how many cars), never over the road, another chip or
+ * a `reserved` area.
  *
  * Hairpins are marked on the road, the tightest first; one that would touch a facility or another hairpin on screen is
  * left out, so on a pass the marks show where the worst bends are rather than every one.
@@ -142,10 +143,10 @@ fun RouteMap(
     t: Tokens,
     reserved: List<Rect>,
     preview: State<Double?>,
+    chipSpecs: List<ChipSpec>,
     modifier: Modifier = Modifier,
 ) {
     val tm = rememberTextMeasurer()
-    val w = rememberWords()
     BoxWithConstraints(modifier) {
         val density = LocalDensity.current
         val wPx = with(density) { maxWidth.toPx() }
@@ -178,7 +179,7 @@ fun RouteMap(
                     val bands = segmentsDifferent.map { s ->
                         (if (s.state.deviation == Deviation.HIGH) t.high else t.some) to geo.path(s.anchor.alongM.toDouble(), s.anchor.endAlongM.toDouble())
                     }
-                    val chips = placeChips(briefing, geo, tm, t, reserved, pins, w::count, size.width, size.height)
+                    val chips = placeChips(briefing, chipSpecs, geo, tm, t, reserved, pins, size.width, size.height)
                     val tickStyle = Type.captionNum.copy(color = t.muted)
                     val lengthKm = route.lengthM / 1000
                     val ticks = (10 until lengthKm.toInt() step 10).map { km -> km to tm.measure("$km", tickStyle) }
@@ -250,8 +251,11 @@ private fun DrawScope.crossTick(p: Offset, dir: Float, t: Tokens) {
     drawLine(t.ink2, p - n * 14.dp.toPx(), p + n * 14.dp.toPx(), 2.dp.toPx())
 }
 
-/** An icon chip: what was different (icon) and how many cars ("6/9"), joined to its mark by a leader. */
-private data class MapChip(val item: BriefingItem, val count: TextLayoutResult, val rect: Rect, val leaderFrom: Offset, val leaderTo: Offset, val cost: Int)
+/** What a map chip says: the caution's number, what was different (icon) and how many cars, at the place met first. */
+data class ChipSpec(val rank: Int, val metric: String, val count: String, val pointM: Int, val deviation: Deviation)
+
+/** A placed chip, joined to its mark by a leader. */
+private data class MapChip(val spec: ChipSpec, val rank: TextLayoutResult, val count: TextLayoutResult, val rect: Rect, val leaderFrom: Offset, val leaderTo: Offset, val cost: Int)
 
 private fun DrawScope.drawChip(chip: MapChip, t: Tokens) {
     drawLine(t.muted, chip.leaderFrom, chip.leaderTo, 1.dp.toPx())
@@ -260,11 +264,18 @@ private fun DrawScope.drawChip(chip: MapChip, t: Tokens) {
     drawRoundRect(t.axis, r.topLeft, r.size, CornerRadius(8.dp.toPx()), style = Stroke(1.dp.toPx()))
     val icon = ChipIcon.toPx()
     val pad = ChipPad.toPx()
-    issueIcon(Words.top(chip.item)?.metric, Offset(r.left + pad + icon / 2, r.center.y), icon, t.ink)
-    drawText(chip.count, topLeft = Offset(r.left + pad + icon + ChipGap.toPx(), r.center.y - chip.count.size.height / 2f))
+    val badge = ChipBadge.toPx()
+    // The number in a disc of the status colour, as in the list of cautions.
+    val bc = Offset(r.left + pad + badge / 2, r.center.y)
+    drawCircle(if (chip.spec.deviation == Deviation.HIGH) t.high else t.some, badge / 2, bc)
+    drawText(chip.rank, topLeft = Offset(bc.x - chip.rank.size.width / 2f, bc.y - chip.rank.size.height / 2f))
+    val ix = r.left + pad + badge + ChipGap.toPx()
+    issueIcon(chip.spec.metric, Offset(ix + icon / 2, r.center.y), icon, t.ink)
+    drawText(chip.count, topLeft = Offset(ix + icon + ChipGap.toPx(), r.center.y - chip.count.size.height / 2f))
 }
 
 private val ChipIcon = 36.dp
+private val ChipBadge = 30.dp
 private val ChipPad = 10.dp
 private val ChipGap = 8.dp
 
@@ -274,19 +285,20 @@ private val ChipGap = 8.dp
  * area or the edge. The cheapest valid one wins (across the road and close first).
  */
 private fun Density.placeChips(
-    briefing: Briefing, geo: RouteGeometry, tm: TextMeasurer, t: Tokens,
-    reserved: List<Rect>, pins: List<Offset>, countOf: (BriefingItem) -> String, w: Float, h: Float,
+    briefing: Briefing, specs: List<ChipSpec>, geo: RouteGeometry, tm: TextMeasurer, t: Tokens,
+    reserved: List<Rect>, pins: List<Offset>, w: Float, h: Float,
 ): List<MapChip> {
     val roadPts = geo.samples(6.dp.toPx())
     val marks = briefing.items.filter { it.different }.map { geo.at(it.pointM.toDouble()).first } + pins
     val pad = 8.dp.toPx()
     val roadClear = TunnelBand.toPx() / 2
-    val options = briefing.labeled.sortedBy { it.pointM }.map { item ->
-        val count = tm.measure(countOf(item), Type.label.copy(color = t.ink, fontFeatureSettings = "tnum"))
-        val cw = ChipPad.toPx() * 2 + ChipIcon.toPx() + ChipGap.toPx() + count.size.width
+    val options = specs.sortedBy { it.pointM }.map { spec ->
+        val count = tm.measure(spec.count, Type.label.copy(color = t.ink, fontFeatureSettings = "tnum"))
+        val rank = tm.measure("${spec.rank}", Type.label.copy(color = t.onStatus, fontFeatureSettings = "tnum"))
+        val cw = ChipPad.toPx() * 2 + ChipBadge.toPx() + ChipGap.toPx() + ChipIcon.toPx() + ChipGap.toPx() + count.size.width
         val ch = ChipIcon.toPx() + 12.dp.toPx()
-        val (c, _) = geo.at(item.pointM.toDouble())
-        val r = (if (item.state.deviation == Deviation.HIGH) 18 else 14).dp.toPx()
+        val (c, _) = geo.at(spec.pointM.toDouble())
+        val r = (if (spec.deviation == Deviation.HIGH) 18 else 14).dp.toPx()
         // (dx, dy) unit directions; up-left and down-right lie across an up-right road.
         val dirs = listOf(Triple(-1f, -1f, 0), Triple(1f, 1f, 0), Triple(1f, -1f, 1), Triple(-1f, 1f, 1))
         listOf(24, 60, 108).flatMapIndexed { di, dist ->
@@ -297,7 +309,7 @@ private fun Density.placeChips(
                 val rect = Rect(left, top, left + cw, top + ch)
                 val corner = Offset(if (sx > 0) rect.left else rect.right, if (sy > 0) rect.top else rect.bottom)
                 val from = c + (corner - c) * (r / maxOf(1f, (corner - c).getDistance()))
-                MapChip(item, count, rect, from, corner, dirCost + di * 3)
+                MapChip(spec, rank, count, rect, from, corner, dirCost + di * 3)
             }
         }.filter { o ->
             val box = o.rect.inflate(pad)

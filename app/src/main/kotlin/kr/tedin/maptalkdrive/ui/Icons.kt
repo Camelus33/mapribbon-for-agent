@@ -220,3 +220,11 @@ fun IssueIcon(metric: String?, size: Dp, ink: Color) = IconBox(size) { c, s -> i
 
 @Composable
 fun FacilityIcon(type: AnchorType, size: Dp, ink: Color) = IconBox(size) { c, s -> pictogram(type, c, s, ink) }
+
+/** Sharp curves: a road bending hard one way and back. */
+fun DrawScope.sharpCurveIcon(c: Offset, s: Float, ink: Color) {
+    drawPath(Path().apply {
+        moveTo(c.x - s * 0.36f, c.y + s * 0.4f)
+        cubicTo(c.x - s * 0.36f, c.y - s * 0.05f, c.x + s * 0.36f, c.y + s * 0.05f, c.x + s * 0.36f, c.y - s * 0.4f)
+    }, ink, style = Stroke(s * 0.11f, cap = StrokeCap.Round))
+}

@@ -64,6 +64,14 @@
     <string name="meaning_slow">평소보다 느린 흐름</string>
     <string name="meaning_other">평소와 다름</string>
 
+    <string name="caution_title">이 길에서 조심할 곳</string>
+    <string name="all_places">평소와 다른 곳 전체 %1$d</string>
+    <string name="action_slow">미리 속도 줄이기</string>
+    <string name="action_distance">앞차와 거리 두기</string>
+    <string name="action_smooth">급제동·급조향 피하기</string>
+    <string name="action_lane">차로를 미리 정하기</string>
+    <string name="action_lights">전조등 켜기</string>
+
     <string name="recording">리본 기록 중</string>
     <string name="recording_count">이번 주행에서 남긴 매듭 %1$d</string>
     <string name="recording_hint">경로 화면은 출발 전에 봅니다. 주행 중에는 도로와 내비를 보세요.</string>

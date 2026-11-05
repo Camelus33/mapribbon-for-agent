@@ -4,6 +4,15 @@ import androidx.compose.animation.Crossfade
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.layout.fillMaxHeight
+import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.clickable
+import kr.tedin.maptalkdrive.ribbon.brief.Cautions
+import kr.tedin.maptalkdrive.ribbon.brief.Caution
+import androidx.compose.ui.draw.clip
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -62,6 +71,8 @@ import kr.tedin.maptalkdrive.ribbon.spec.Deviation
 import kr.tedin.maptalkdrive.ribbon.spec.RibbonStatus
 
 private val Gutter = 48.dp
+/** The left part of the briefing: the words. The map takes the rest. */
+private val SidePanel = 600.dp
 private val Touch = 76.dp
 
 /**
@@ -114,37 +125,39 @@ private fun BriefingScreen(vm: RibbonViewModel, s: ChannelState, preview: State<
                 Text(w.str(R.string.demo), style = Type.button, color = t.ink)
             }
         }
-        // The road runs from bottom-left (start) to top-right (destination). The two empty corners it leaves hold the
-        // card (top-left) and the list (bottom-right); the map keeps its chips out of both.
-        Box(Modifier.weight(1f).fillMaxWidth()) {
-            // The card grows while the preview runs; its reserved area only ever grows within one mode, so the map does
-            // not re-place its chips each time a distance changes width.
-            var cardRect by remember(running) { mutableStateOf(Rect.Zero) }
-            var listRect by remember { mutableStateOf(Rect.Zero) }
-            RouteMap(
-                b, r.route, r.curves, r.hairpins, start, end, t,
-                reserved = listOf(cardRect, listRect).filter { it != Rect.Zero },
-                preview = preview, modifier = Modifier.fillMaxSize(),
-            )
-            Column(Modifier.align(Alignment.TopStart).padding(top = 24.dp).onGloballyPositioned { cardRect = grow(cardRect, it.boundsInParent()) }) {
+        // Two parts that never overlap: the words on the left (where to take care, the legend, every place), the map on
+        // the right, where the road runs from bottom-left (start) to top-right (destination). Text over the road makes
+        // both unreadable, so the map has its own area and nothing is drawn over it but its own chips.
+        Row(Modifier.weight(1f).fillMaxWidth()) {
+            // Where to take care, ranked; the map numbers them the same way.
+            val cautions = remember(b, r) { Cautions.build(b, r.curves, r.hairpins, System.currentTimeMillis()) }
+            val chips = remember(cautions, w) {
+                cautions.map { c -> ChipSpec(c.rank, c.metric, w.count(b.items.first { it.anchor.id == c.leadId }), c.pointM, c.deviation) }
+            }
+            val different = b.items.filter { it.different }.sortedWith(compareByDescending<BriefingItem> { it.state.deviation.ordinal }.thenBy { it.pointM })
+            Column(Modifier.width(SidePanel).fillMaxHeight().verticalScroll(rememberScrollState()).padding(top = 20.dp, end = 32.dp, bottom = 12.dp)) {
                 if (running) {
                     PreviewCard(b, preview, w, t)
-                } else {
-                    val top = b.headline
-                    if (top != null) {
-                        PlaceCard(top, w, t, ahead = null)
+                } else if (cautions.isNotEmpty()) {
+                    CautionList(cautions, b, w, t)
+                    if (b.notEnoughCount > 0) {
                         Spacer(Modifier.height(16.dp))
-                        Counts(b, w, t)
-                    } else {
-                        Verdict(b.items.count { it.state.status == RibbonStatus.PUBLISHED }, b.notEnoughCount, rest = false, w, t)
+                        NotJudged(b.notEnoughCount, w, t)
                     }
+                } else {
+                    Verdict(b.items.count { it.state.status == RibbonStatus.PUBLISHED }, b.notEnoughCount, rest = false, w, t)
                 }
                 Spacer(Modifier.height(24.dp))
                 Legend(b, r.curves.map { it.curve }.toSet(), r.hairpins.isNotEmpty(), w, t)
+                if (!running && different.isNotEmpty()) {
+                    Spacer(Modifier.height(16.dp))
+                    AllPlaces(different, w, t)
+                }
             }
-            Box(Modifier.align(Alignment.BottomEnd).widthIn(max = 820.dp).onGloballyPositioned { listRect = it.boundsInParent() }) {
-                PlaceList(b.items.filter { it.different }.sortedWith(compareByDescending<BriefingItem> { it.state.deviation.ordinal }.thenBy { it.pointM }), w, t)
-            }
+            RouteMap(
+                b, r.route, r.curves, r.hairpins, start, end, t,
+                reserved = emptyList(), preview = preview, chipSpecs = chips, modifier = Modifier.weight(1f).fillMaxHeight(),
+            )
         }
         Spacer(Modifier.height(16.dp))
         Row(verticalAlignment = Alignment.CenterVertically) {
@@ -174,10 +187,6 @@ private fun BriefingScreen(vm: RibbonViewModel, s: ChannelState, preview: State<
         }
     }
 }
-
-/** Grows `old` to hold `new`; an empty rect takes `new` as is. */
-private fun grow(old: Rect, new: Rect): Rect =
-    if (old == Rect.Zero) new else Rect(minOf(old.left, new.left), minOf(old.top, new.top), maxOf(old.right, new.right), maxOf(old.bottom, new.bottom))
 
 /** What the preview card shows: the next different place ahead and its distance, or how the rest of the route stands. */
 private data class AheadView(val item: BriefingItem?, val distance: Pair<String, String>?, val judged: Int, val notJudged: Int) {
@@ -227,16 +236,13 @@ private fun rememberNow(): Long {
 private fun PlaceCard(item: BriefingItem, w: Words, t: Tokens, ahead: Pair<String, String>?) {
     val metric = Words.top(item)?.metric
     val now = rememberNow()
-    Row(
-        verticalAlignment = Alignment.Top,
-        modifier = Modifier.semantics(mergeDescendants = true) { contentDescription = w.describe(item) },
-    ) {
-        Row(horizontalArrangement = Arrangement.spacedBy(12.dp), verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(top = 4.dp)) {
-            StatusGlyph(item.state.deviation, 52.dp, t, t.surface)
-            FacilityIcon(item.anchor.type, 52.dp, t.ink)
-            IssueIcon(metric, 52.dp, t.ink)
+    Column(modifier = Modifier.semantics(mergeDescendants = true) { contentDescription = w.describe(item) }) {
+        Row(horizontalArrangement = Arrangement.spacedBy(12.dp), verticalAlignment = Alignment.CenterVertically) {
+            StatusGlyph(item.state.deviation, 48.dp, t, t.surface)
+            FacilityIcon(item.anchor.type, 48.dp, t.ink)
+            IssueIcon(metric, 48.dp, t.ink)
         }
-        Spacer(Modifier.width(24.dp))
+        Spacer(Modifier.height(8.dp))
         Column {
             if (ahead != null) {
                 val (num, unit) = ahead
@@ -260,7 +266,7 @@ private fun PlaceCard(item: BriefingItem, w: Words, t: Tokens, ahead: Pair<Strin
                 }
                 Text(w.count(item), style = Type.headline.copy(fontFeatureSettings = "tnum"), color = t.ink)
                 Spacer(Modifier.width(16.dp))
-                BulletBar(item, 200.dp, t)
+                BulletBar(item, 160.dp, t)
                 w.usual(item)?.let { usual ->
                     Spacer(Modifier.width(12.dp))
                     UsualTick(t)
@@ -320,25 +326,115 @@ private fun NotJudged(n: Int, w: Words, t: Tokens) {
     }
 }
 
-/** How many places are different, by level, as marks with numbers; then the places not judged, with their own mark. */
+/**
+ * Where to take care on this route, at most three, most costly first. The first is said in full: its number (in its
+ * status colour, as on the map), what it may be and where, why it weighs (a tunnel exit, hairpins or sharp curves), the
+ * evidence (cars, last car) and what a careful driver does there. The second and third are one line each, number, icon,
+ * what and where, and open in full when touched (one at a time): three full cautions are more than a glance can take.
+ */
 @Composable
-private fun Counts(b: Briefing, w: Words, t: Tokens) {
-    val high = b.items.count { it.different && it.state.deviation == Deviation.HIGH }
-    val some = b.items.count { it.different && it.state.deviation == Deviation.SOME }
-    Row(horizontalArrangement = Arrangement.spacedBy(24.dp), verticalAlignment = Alignment.CenterVertically) {
-        if (high > 0) CountMark(high, t) { StatusGlyph(Deviation.HIGH, 32.dp, t, t.surface) }
-        if (some > 0) CountMark(some, t) { StatusGlyph(Deviation.SOME, 32.dp, t, t.surface) }
-        if (b.notEnoughCount > 0) NotJudged(b.notEnoughCount, w, t)
+private fun CautionList(cautions: List<Caution>, b: Briefing, w: Words, t: Tokens) {
+    val now = rememberNow()
+    var open by remember(cautions) { mutableStateOf<Int?>(null) }
+    Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+        Text(w.str(R.string.caution_title), style = Type.caption, color = t.ink2)
+        for (c in cautions) {
+            val lead = b.items.first { it.anchor.id == c.leadId }
+            when {
+                c.rank == 1 -> CautionRow(c, lead, w, t, now, onToggle = null)
+                open == c.rank -> CautionRow(c, lead, w, t, now, onToggle = { open = null })
+                else -> CautionLine(c, lead, w, t, onOpen = { open = c.rank })
+            }
+        }
+    }
+}
+
+/** A single facility is named; a stretch (or a facility with the segments after it) is its kilometres. */
+private fun whereOf(c: Caution, lead: BriefingItem, w: Words): String =
+    if (c.anchorIds.size == 1 && lead.anchor.type != AnchorType.SEGMENT) "${w.place(lead)} · ${Words.at(c.pointM)}"
+    else if (c.fromM == c.toM) Words.at(c.fromM) else "%.1f–%.1f km".format(c.fromM / 1000.0, c.toM / 1000.0)
+
+/** A caution folded to one line: number, icon, what and where, and a chevron that says it opens. */
+@Composable
+private fun CautionLine(c: Caution, lead: BriefingItem, w: Words, t: Tokens, onOpen: () -> Unit) {
+    val where = whereOf(c, lead, w)
+    Row(
+        verticalAlignment = Alignment.CenterVertically,
+        modifier = Modifier.heightIn(min = 64.dp).clip(RoundedCornerShape(12.dp)).clickable(onClick = onOpen)
+            .semantics(mergeDescendants = true) { contentDescription = "${c.rank}. ${w.reading(c.reading)}, $where" }
+            .padding(end = 12.dp),
+    ) {
+        RankBadge(c.rank, c.deviation, t)
+        Spacer(Modifier.width(14.dp))
+        IssueIcon(c.metric, 30.dp, t.ink)
+        Spacer(Modifier.width(10.dp))
+        Text(w.reading(c.reading), style = Type.title, color = t.ink, maxLines = 1)
+        Spacer(Modifier.width(12.dp))
+        // The place gives way (ellipsis) before the chevron does: the chevron is what says the line opens.
+        Text(where, style = Type.caption.copy(fontFeatureSettings = "tnum"), color = t.ink2, maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f, fill = false))
+        Spacer(Modifier.width(10.dp))
+        IconBox(24.dp) { o, sz -> chevronIcon(o, sz, t.ink2, up = false) }
     }
 }
 
 @Composable
-private fun CountMark(n: Int, t: Tokens, mark: @Composable () -> Unit) {
-    Row(verticalAlignment = Alignment.CenterVertically) {
-        mark()
-        Spacer(Modifier.width(8.dp))
-        Text("$n", style = Type.title.copy(fontFeatureSettings = "tnum"), color = t.ink)
+private fun CautionRow(c: Caution, lead: BriefingItem, w: Words, t: Tokens, now: Long, onToggle: (() -> Unit)?) {
+    val where = whereOf(c, lead, w)
+    val actions = c.actions.joinToString(" · ") { w.action(it) }
+    Row(
+        verticalAlignment = Alignment.Top,
+        modifier = Modifier.clip(RoundedCornerShape(12.dp)).then(if (onToggle != null) Modifier.clickable(onClick = onToggle) else Modifier)
+            .semantics(mergeDescendants = true) {
+                contentDescription = "${c.rank}. ${w.reading(c.reading)}, $where, ${w.describe(lead)}. $actions"
+            }
+            .padding(end = 12.dp, bottom = 4.dp),
+    ) {
+        RankBadge(c.rank, c.deviation, t)
+        Spacer(Modifier.width(14.dp))
+        Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                IssueIcon(c.metric, 36.dp, t.ink)
+                Spacer(Modifier.width(10.dp))
+                Text(w.reading(c.reading), style = CautionTitle, color = t.ink, maxLines = 1)
+                Spacer(Modifier.width(14.dp))
+                Text(where, style = Type.context.copy(fontFeatureSettings = "tnum"), color = t.ink2, maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f, fill = false))
+                if (onToggle != null) {
+                    Spacer(Modifier.width(10.dp))
+                    IconBox(24.dp) { o, sz -> chevronIcon(o, sz, t.ink2, up = true) }
+                }
+            }
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                // Why it weighs: met at a tunnel exit, on hairpins or sharp curves.
+                if (c.tunnelExit) { FacilityIcon(AnchorType.TUNNEL, 26.dp, t.ink2); Spacer(Modifier.width(6.dp)) }
+                if (c.hairpins > 0) { IconBox(26.dp) { o, sz -> hairpinIcon(o, sz, t.ink2) }; Spacer(Modifier.width(6.dp)) }
+                else if (c.onSharpCurves) { IconBox(26.dp) { o, sz -> sharpCurveIcon(o, sz, t.ink2) }; Spacer(Modifier.width(6.dp)) }
+                if (c.tunnelExit || c.hairpins > 0 || c.onSharpCurves) Spacer(Modifier.width(8.dp))
+                if (Words.isCars(lead)) {
+                    IconBox(24.dp) { o, sz -> carIcon(o, sz, t.ink2) }
+                    Spacer(Modifier.width(4.dp))
+                }
+                Text(w.count(lead), style = Type.caption.copy(fontFeatureSettings = "tnum"), color = t.ink2)
+                c.lastMs?.let { last ->
+                    Spacer(Modifier.width(14.dp))
+                    IconBox(20.dp) { o, sz -> clockIcon(o, sz, t.ink2) }
+                    Spacer(Modifier.width(4.dp))
+                    Text(w.lastCar(last, now), style = Type.caption.copy(fontFeatureSettings = "tnum"), color = t.ink2)
+                }
+            }
+            Text("→ $actions", style = Type.caption, color = t.ink)
+        }
     }
+}
+
+private val CautionTitle = Type.headline.copy(fontSize = 30.sp, lineHeight = 38.sp)
+
+/** The caution's number in a disc of its status colour: clearly different (orange) or somewhat (yellow). */
+@Composable
+private fun RankBadge(rank: Int, d: Deviation, t: Tokens) {
+    Box(
+        Modifier.padding(top = 2.dp).size(40.dp).clip(CircleShape).background(if (d == Deviation.HIGH) t.high else t.some),
+        contentAlignment = Alignment.Center,
+    ) { Text("$rank", style = Type.title.copy(fontFeatureSettings = "tnum"), color = t.onStatus) }
 }
 
 /** This time as a filled bar (in the status colour), the usual share as a tick across it. */
@@ -365,8 +461,8 @@ private fun UsualTick(t: Tokens) = Canvas(Modifier.size(width = 6.dp, height = 2
 }
 
 /**
- * The legend: how the road is drawn and what the marks mean. Only kinds on screen are listed. This is the one place
- * that spells out the icons.
+ * The legend: how the road is drawn and what the marks mean. Only kinds on screen are listed. The icons of what was
+ * different need no entry: everywhere they appear, their words stand next to them.
  */
 @Composable
 private fun Legend(b: Briefing, curves: Set<CurveClass>, hairpins: Boolean, w: Words, t: Tokens) {
@@ -384,14 +480,9 @@ private fun Legend(b: Briefing, curves: Set<CurveClass>, hairpins: Boolean, w: W
         if (b.items.any { it.state.status == RibbonStatus.PUBLISHED && !it.different && it.anchor.type != AnchorType.SEGMENT }) add(LegendKind.USUAL to w.str(R.string.legend_usual))
         if (b.notEnoughCount > 0) add(LegendKind.NOT_ENOUGH to w.str(R.string.legend_not_enough))
     }
-    // One entry per icon: fog lights switched on (at a tunnel) and on (on a segment) share the icon and the words.
-    val issues = b.items.filter { it.different }.mapNotNull { Words.top(it)?.metric }.distinctBy { w.issue(it) }
     Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
         LegendRow(t) { for ((k, label) in road) LegendEntry(label, t) { LegendSwatch(k, t) } }
         if (marks.isNotEmpty()) LegendRow(t) { for ((k, label) in marks) LegendEntry(label, t) { LegendSwatch(k, t) } }
-        if (issues.isNotEmpty()) LegendRow(t) {
-            for (m in issues) LegendEntry(w.issue(m), t) { IssueIcon(m, 28.dp, t.ink2) }
-        }
     }
 }
 
@@ -424,32 +515,43 @@ private fun PlaceList(rows: List<BriefingItem>, w: Words, t: Tokens) {
             val metric = Words.top(item)?.metric
             Box(Modifier.fillMaxWidth().height(1.dp).background(t.grid))
             Row(
-                Modifier.height(76.dp).semantics(mergeDescendants = true) { contentDescription = w.describe(item) },
+                Modifier.fillMaxWidth().height(68.dp).semantics(mergeDescendants = true) { contentDescription = w.describe(item) },
                 verticalAlignment = Alignment.CenterVertically,
             ) {
-                StatusGlyph(item.state.deviation, 28.dp, t, t.surface)
+                StatusGlyph(item.state.deviation, 26.dp, t, t.surface)
+                Spacer(Modifier.width(10.dp))
+                IssueIcon(metric, 28.dp, t.ink)
                 Spacer(Modifier.width(12.dp))
-                FacilityIcon(item.anchor.type, 30.dp, t.ink2)
-                Spacer(Modifier.width(8.dp))
-                IssueIcon(metric, 30.dp, t.ink)
-                Spacer(Modifier.width(16.dp))
-                Column(Modifier.width(300.dp)) {
+                Column(Modifier.weight(1f)) {
                     Text(w.meaning(item), style = Type.body, color = t.ink, maxLines = 1, overflow = TextOverflow.Ellipsis)
                     Text(w.place(item), style = Type.caption, color = t.ink2, maxLines = 1, overflow = TextOverflow.Ellipsis)
                 }
-                Row(Modifier.width(132.dp), horizontalArrangement = Arrangement.End, verticalAlignment = Alignment.CenterVertically) {
-                    if (Words.isCars(item)) {
-                        IconBox(26.dp) { c, sz -> carIcon(c, sz, t.ink2) }
-                        Spacer(Modifier.width(6.dp))
-                    }
-                    Text(w.count(item), style = Type.bodyNum, color = t.ink, maxLines = 1)
+                Spacer(Modifier.width(8.dp))
+                if (Words.isCars(item)) {
+                    IconBox(24.dp) { c, sz -> carIcon(c, sz, t.ink2) }
+                    Spacer(Modifier.width(4.dp))
                 }
-                Spacer(Modifier.width(16.dp))
-                BulletBar(item, 120.dp, t)
-                Text(Words.at(item.pointM), style = Type.bodyNum, color = t.ink2, modifier = Modifier.width(110.dp), textAlign = TextAlign.End)
+                Text(w.count(item), style = Type.bodyNum, color = t.ink, maxLines = 1)
+                Text(Words.at(item.pointM), style = Type.bodyNum, color = t.ink2, modifier = Modifier.width(100.dp), textAlign = TextAlign.End)
             }
         }
         Box(Modifier.fillMaxWidth().height(1.dp).background(t.grid))
+    }
+}
+
+/** Every different place, folded behind one line: the cautions above already say the ones that matter most. */
+@Composable
+private fun AllPlaces(rows: List<BriefingItem>, w: Words, t: Tokens) {
+    var open by rememberSaveable { mutableStateOf(false) }
+    Column {
+        Row(
+            Modifier.fillMaxWidth().heightIn(min = 56.dp).clip(RoundedCornerShape(12.dp)).clickable { open = !open },
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Text(w.str(R.string.all_places, rows.size), style = Type.caption, color = t.ink2, modifier = Modifier.weight(1f))
+            IconBox(24.dp) { c, sz -> chevronIcon(c, sz, t.ink2, up = open) }
+        }
+        if (open) PlaceList(rows, w, t)
     }
 }
 

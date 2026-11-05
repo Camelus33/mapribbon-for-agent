@@ -8,6 +8,8 @@ import android.database.MatrixCursor
 import android.net.Uri
 import kr.tedin.maptalkdrive.ribbon.brief.Briefing
 import kr.tedin.maptalkdrive.ribbon.brief.BriefingItem
+import kr.tedin.maptalkdrive.ribbon.brief.Caution
+import kr.tedin.maptalkdrive.ribbon.brief.Cautions
 import kr.tedin.maptalkdrive.ribbon.spec.AnchorRef
 import kr.tedin.maptalkdrive.ribbon.spec.RibbonJson
 import kr.tedin.maptalkdrive.ribbon.spec.RibbonState
@@ -21,6 +23,7 @@ import kr.tedin.maptalkdrive.ribbon.spec.RouteBrief
  * - `content://kr.tedin.maptalkdrive.ribbons/ribbons/<anchorId>`   one facility or segment
  * - `content://kr.tedin.maptalkdrive.ribbons/next?along_m=12000`   the next facility or segment ahead that is different from usual
  * - `content://kr.tedin.maptalkdrive.ribbons/route`                how the route bends (with its hairpins), and its facilities
+ * - `content://kr.tedin.maptalkdrive.ribbons/caution`              where to take care, at most three, ranked (`maptalk.caution/1`)
  *
  * Each answers for the route on screen; add `?route=<routeId>` (SY60E, N44E) for another.
  *
@@ -32,6 +35,7 @@ class RibbonProvider : ContentProvider() {
         addURI(AUTHORITY, "ribbons/*", RIBBON)
         addURI(AUTHORITY, "next", NEXT)
         addURI(AUTHORITY, "route", ROUTE)
+        addURI(AUTHORITY, "caution", CAUTION)
     }
 
     override fun onCreate(): Boolean = true
@@ -64,6 +68,17 @@ class RibbonProvider : ContentProvider() {
                     addRow(arrayOf<Any?>(set.routeId, set.routeName, set.lengthM, RibbonJson.encodeToString(RouteBrief.serializer(), brief)))
                 }
             }
+            CAUTION -> {
+                val now = System.currentTimeMillis()
+                val cautions = Cautions.build(Briefing.build(anchors, channel.ribbons(r.id, now)), r.curves, r.hairpins, now)
+                MatrixCursor(CAUTION_COLUMNS).apply {
+                    for (c in cautions) addRow(arrayOf<Any?>(
+                        c.rank, c.reading.name, c.fromM, c.toM, c.pointM, c.metric, c.deviation.name, c.cars, c.n,
+                        c.hairpins, if (c.onSharpCurves) 1 else 0, if (c.tunnelExit) 1 else 0, if (c.sudden) 1 else 0,
+                        c.actions.joinToString(",") { it.name }, c.lastMs, c.score, RibbonJson.encodeToString(Caution.serializer(), c),
+                    ))
+                }
+            }
             else -> throw IllegalArgumentException("unknown uri $uri")
         }
     }
@@ -82,6 +97,7 @@ class RibbonProvider : ContentProvider() {
 
     override fun getType(uri: Uri): String = when (matcher.match(uri)) {
         RIBBONS, NEXT -> "vnd.android.cursor.dir/vnd.$AUTHORITY.ribbon"
+        CAUTION -> "vnd.android.cursor.dir/vnd.$AUTHORITY.caution"
         RIBBON -> "vnd.android.cursor.item/vnd.$AUTHORITY.ribbon"
         ROUTE -> "vnd.android.cursor.item/vnd.$AUTHORITY.route"
         else -> throw IllegalArgumentException("unknown uri $uri")
@@ -98,9 +114,14 @@ class RibbonProvider : ContentProvider() {
         private const val RIBBON = 2
         private const val NEXT = 3
         private const val ROUTE = 4
+        private const val CAUTION = 5
         val COLUMNS = arrayOf(
             "anchor_id", "type", "name", "along_m", "point_m", "distance_m", "status", "deviation", "n", "window_min",
             "last_ms", "top_metric", "gist", "json",
+        )
+        val CAUTION_COLUMNS = arrayOf(
+            "rank", "reading", "from_m", "to_m", "point_m", "metric", "deviation", "cars", "n",
+            "hairpins", "on_sharp_curves", "tunnel_exit", "sudden", "actions", "last_ms", "score", "json",
         )
     }
 }

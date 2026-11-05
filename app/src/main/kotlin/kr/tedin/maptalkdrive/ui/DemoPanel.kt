@@ -521,7 +521,7 @@ private fun DrawScope.thermometerIcon(c: Offset, s: Float, ink: Color) {
     for (y in listOf(-0.3f, -0.16f, -0.02f)) drawLine(ink, Offset(c.x + s * 0.14f, c.y + s * y), Offset(c.x + s * 0.24f, c.y + s * y), s * 0.06f, StrokeCap.Round)
 }
 
-private fun DrawScope.chevronIcon(c: Offset, s: Float, ink: Color, up: Boolean) {
+fun DrawScope.chevronIcon(c: Offset, s: Float, ink: Color, up: Boolean) {
     val d = if (up) -1f else 1f
     drawLine(ink, Offset(c.x - s * 0.3f, c.y - d * s * 0.12f), Offset(c.x, c.y + d * s * 0.16f), s * 0.09f, StrokeCap.Round)
     drawLine(ink, Offset(c.x, c.y + d * s * 0.16f), Offset(c.x + s * 0.3f, c.y - d * s * 0.12f), s * 0.09f, StrokeCap.Round)

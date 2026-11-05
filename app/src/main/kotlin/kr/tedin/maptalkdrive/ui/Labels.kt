@@ -6,6 +6,8 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.platform.LocalContext
 import kr.tedin.maptalkdrive.R
 import kr.tedin.maptalkdrive.ribbon.brief.BriefingItem
+import kr.tedin.maptalkdrive.ribbon.brief.CautionAction
+import kr.tedin.maptalkdrive.ribbon.brief.Reading
 import kr.tedin.maptalkdrive.ribbon.spec.Anchor
 import kr.tedin.maptalkdrive.ribbon.spec.AnchorSet
 import kr.tedin.maptalkdrive.ribbon.spec.AnchorType
@@ -63,29 +65,39 @@ class Words(private val r: Resources) {
     )
 
     /**
-     * What the behaviour may mean for the driver, always said as a possibility. The issue icon and the count of cars
-     * next to it are the evidence; this line is the reading of it. Hard braking at a camera is the camera's doing, not
-     * a hold-up. Rain and fog are graded by the other reasons: fast wipers make it heavy rain, rear fog lights thick fog.
+     * What the behaviour may mean for the driver, always said as a possibility (see [Reading]). The issue icon and the
+     * count of cars next to it are the evidence; this line is the reading of it.
      */
-    fun meaning(item: BriefingItem): String {
-        val also = item.state.reasons.map { it.metric }.toSet()
-        return r.getString(meaningOf(item, also))
-    }
+    fun meaning(item: BriefingItem): String = reading(Reading.of(item))
 
-    private fun meaningOf(item: BriefingItem, also: Set<String>): Int =
-        when (top(item)?.metric) {
-            Metric.WIPER_TURNED_ON_RATE, Metric.WIPER_ON_RATE -> if (Metric.WIPER_FAST_RATE in also) R.string.meaning_heavy_rain else R.string.meaning_rain
-            Metric.WIPER_FAST_RATE -> R.string.meaning_heavy_rain
-            Metric.FOG_TURNED_ON_RATE, Metric.FOG_ON_RATE -> if (Metric.REAR_FOG_RATE in also) R.string.meaning_thick_fog else R.string.meaning_fog
-            Metric.REAR_FOG_RATE -> R.string.meaning_thick_fog
-            Metric.ICE_RISK_RATE -> R.string.meaning_ice
-            Metric.DAY_LOW_BEAM_RATE -> R.string.meaning_dark
-            Metric.HARD_BRAKE_RATE -> if (item.anchor.type == AnchorType.CAMERA) R.string.meaning_camera_brake else R.string.meaning_holdup
-            Metric.LATE_LANE_CHANGE_RATE -> R.string.meaning_exit_busy
-            Metric.STOP_RATE -> R.string.meaning_queue
-            Metric.ENTRY_DECEL_KMH, Metric.SPEED_AT_KMH -> R.string.meaning_slow
-            else -> R.string.meaning_other
-        }
+    fun reading(x: Reading): String =
+        r.getString(
+            when (x) {
+                Reading.ICE -> R.string.meaning_ice
+                Reading.QUEUE -> R.string.meaning_queue
+                Reading.HOLDUP -> R.string.meaning_holdup
+                Reading.THICK_FOG -> R.string.meaning_thick_fog
+                Reading.FOG -> R.string.meaning_fog
+                Reading.HEAVY_RAIN -> R.string.meaning_heavy_rain
+                Reading.RAIN -> R.string.meaning_rain
+                Reading.POOR_LIGHT -> R.string.meaning_dark
+                Reading.EXIT_BUSY -> R.string.meaning_exit_busy
+                Reading.CAMERA_BRAKE -> R.string.meaning_camera_brake
+                Reading.SLOW -> R.string.meaning_slow
+                Reading.OTHER -> R.string.meaning_other
+            },
+        )
+
+    /** What a careful driver does there: general safe driving, never route guidance. */
+    fun action(a: CautionAction): String = r.getString(
+        when (a) {
+            CautionAction.SLOW_DOWN_EARLY -> R.string.action_slow
+            CautionAction.KEEP_DISTANCE -> R.string.action_distance
+            CautionAction.AVOID_SUDDEN_INPUTS -> R.string.action_smooth
+            CautionAction.CHOOSE_LANE_EARLY -> R.string.action_lane
+            CautionAction.LIGHTS_ON -> R.string.action_lights
+        },
+    )
 
     /**
      * This time, in cars: "6/9대", "6 of 9". With eight or nine cars a percentage overstates precision, and a bare
@@ -152,7 +164,8 @@ class Words(private val r: Resources) {
     }
 
     companion object {
-        fun top(item: BriefingItem): Reason? = item.state.reasons.firstOrNull()
+        /** The reason a place is shown by: the one behind its reading (see [Reading.evidence]), so icon, count and meaning agree. */
+        fun top(item: BriefingItem): Reason? = Reading.evidence(item)
 
         private fun isSpeed(r: Reason) = r.metric.endsWith("Kmh")
 

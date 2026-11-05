@@ -50,6 +50,25 @@
       "contentUri": "content://kr.tedin.maptalkdrive.ribbons/next?along_m={along_m}&route={route}"
     },
     {
+      "name": "get_cautions",
+      "description": "Where the driver should take care on the route right now, at most three places ranked by what it costs to meet them unprepared. Each says what it may be (reading: ICE, QUEUE, HOLDUP, THICK_FOG, FOG, HEAVY_RAIN, RAIN, POOR_LIGHT, EXIT_BUSY, CAMERA_BRAKE, SLOW), where (from_m to to_m, met first at point_m), why it weighs (on sharp curves or hairpins; sudden after a tunnel or a usual stretch), the evidence (cars of n, last car), and general safe actions (SLOW_DOWN_EARLY, KEEP_DISTANCE, AVOID_SUDDEN_INPUTS, CHOOSE_LANE_EARLY, LIGHTS_ON). Built from the ribbons only: no row when nothing is different. Meant for a spoken briefing before departure; always say a reading as a possibility.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "route": {
+            "type": "string",
+            "enum": [
+              "SY60E",
+              "N44E"
+            ],
+            "description": "Route id. Omit for the route on screen. SY60E: Seoul-Yangyang Expressway Inje IC to Yangyang JC. N44E: National Route 44 over Hangyeryeong Pass, Inje to Yangyang."
+          }
+        },
+        "additionalProperties": false
+      },
+      "contentUri": "content://kr.tedin.maptalkdrive.ribbons/caution?route={route}"
+    },
+    {
       "name": "get_route_shape",
       "description": "How the route bends, cut into stretches of STRAIGHT (radius 2 km or more), CURVE (500 m to 2 km) and SHARP (under 500 m, slow down from 100 km/h) with the tightest radius of each; the hairpins inside them (where the heading turns 120 degrees or more within 200 m), each with its position, radius and turn; plus the anchors the ribbons hang on (facilities and segments).",
       "parameters": {
