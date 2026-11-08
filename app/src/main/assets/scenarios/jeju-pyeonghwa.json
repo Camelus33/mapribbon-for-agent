@@ -1,0 +1,197 @@
+{
+  "spec": "maptalk.scenario/1",
+  "id": "jeju-pyeonghwa",
+  "routeId": "J1135S",
+  "title": "평화로: 광평교차로 신호 대기 정체, 카메라 앞 급제동, 서광1교차로 직전 끼어들기",
+  "titleEn": "Pyeonghwa-ro: a queue at the Gwangpyeong signal, braking at the camera, late merges before Seogwang 1",
+  "description": "시속 80 km 도로의 평면 교차로인 광평교차로 신호 대기 줄이 600 m 뒤 17.6–19.6 km 구간까지 이어져, 9대 중 4대가 거기서 급제동하고 멈춘다. 3대가 가상 단속카메라 앞에서 급제동하고, 4대가 중문 쪽으로 꺾는 서광1교차로 300 m 안에서 방향지시등을 켠다.",
+  "vehicles": [
+    {
+      "id": "sim-1",
+      "startMinutesAgo": 36,
+      "kmh": 78,
+      "widthClass": "MEDIUM",
+      "segments": [
+        {
+          "fromM": 19316,
+          "toM": 19351,
+          "kmh": 2
+        },
+        {
+          "fromM": 19286,
+          "toM": 19351,
+          "brake": true
+        },
+        {
+          "fromM": 24391,
+          "toM": 24591,
+          "kmh": 50
+        },
+        {
+          "fromM": 24381,
+          "toM": 24471,
+          "brake": true
+        }
+      ]
+    },
+    {
+      "id": "sim-2",
+      "startMinutesAgo": 40,
+      "kmh": 80,
+      "widthClass": "WIDE",
+      "segments": []
+    },
+    {
+      "id": "sim-3",
+      "startMinutesAgo": 44,
+      "kmh": 82,
+      "widthClass": "MEDIUM",
+      "segments": [
+        {
+          "fromM": 19316,
+          "toM": 19351,
+          "kmh": 2
+        },
+        {
+          "fromM": 19286,
+          "toM": 19351,
+          "brake": true
+        },
+        {
+          "fromM": 26704,
+          "toM": 26974,
+          "turn": "RIGHT"
+        }
+      ]
+    },
+    {
+      "id": "sim-4",
+      "startMinutesAgo": 48,
+      "kmh": 84,
+      "widthClass": "NARROW",
+      "segments": [
+        {
+          "fromM": 24391,
+          "toM": 24591,
+          "kmh": 50
+        },
+        {
+          "fromM": 24381,
+          "toM": 24471,
+          "brake": true
+        },
+        {
+          "fromM": 26704,
+          "toM": 26974,
+          "turn": "RIGHT"
+        }
+      ]
+    },
+    {
+      "id": "sim-5",
+      "startMinutesAgo": 52,
+      "kmh": 78,
+      "widthClass": "MEDIUM",
+      "segments": [
+        {
+          "fromM": 19316,
+          "toM": 19351,
+          "kmh": 2
+        },
+        {
+          "fromM": 19286,
+          "toM": 19351,
+          "brake": true
+        },
+        {
+          "fromM": 26704,
+          "toM": 26974,
+          "turn": "RIGHT"
+        }
+      ]
+    },
+    {
+      "id": "sim-6",
+      "startMinutesAgo": 56,
+      "kmh": 80,
+      "widthClass": "WIDE",
+      "segments": [
+        {
+          "fromM": 26704,
+          "toM": 26974,
+          "turn": "RIGHT"
+        }
+      ]
+    },
+    {
+      "id": "sim-7",
+      "startMinutesAgo": 60,
+      "kmh": 82,
+      "widthClass": "MEDIUM",
+      "segments": [
+        {
+          "fromM": 19316,
+          "toM": 19351,
+          "kmh": 2
+        },
+        {
+          "fromM": 19286,
+          "toM": 19351,
+          "brake": true
+        },
+        {
+          "fromM": 24391,
+          "toM": 24591,
+          "kmh": 50
+        },
+        {
+          "fromM": 24381,
+          "toM": 24471,
+          "brake": true
+        },
+        {
+          "fromM": 25824,
+          "toM": 26974,
+          "turn": "RIGHT"
+        }
+      ]
+    },
+    {
+      "id": "sim-8",
+      "startMinutesAgo": 64,
+      "kmh": 84,
+      "widthClass": "MEDIUM",
+      "segments": [
+        {
+          "fromM": 25824,
+          "toM": 26974,
+          "turn": "RIGHT"
+        }
+      ]
+    },
+    {
+      "id": "sim-9",
+      "startMinutesAgo": 68,
+      "kmh": 78,
+      "widthClass": "NARROW",
+      "segments": []
+    }
+  ],
+  "story": [
+    {
+      "metric": "stopRate",
+      "fromM": 19346,
+      "cars": 4
+    },
+    {
+      "metric": "hardBrakeRate",
+      "fromM": 24531,
+      "cars": 3
+    },
+    {
+      "metric": "lateLaneChangeRate",
+      "fromM": 26924,
+      "cars": 4
+    }
+  ]
+}

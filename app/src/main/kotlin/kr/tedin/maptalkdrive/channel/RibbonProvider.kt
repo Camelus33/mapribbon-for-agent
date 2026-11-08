@@ -25,7 +25,7 @@ import kr.tedin.maptalkdrive.ribbon.spec.RouteBrief
  * - `content://kr.tedin.maptalkdrive.ribbons/route`                how the route bends (with its hairpins), and its facilities
  * - `content://kr.tedin.maptalkdrive.ribbons/caution`              where to take care, at most three, ranked (`maptalk.caution/1`)
  *
- * Each answers for the route on screen; add `?route=<routeId>` (SY60E, N44E) for another.
+ * Each answers for the route on screen; add `?route=<routeId>` (SY60E, N44E, J1100S, J1135S) for another.
  *
  * Ribbons are aggregates of at least three cars with no identities in them, so the provider needs no permission.
  */

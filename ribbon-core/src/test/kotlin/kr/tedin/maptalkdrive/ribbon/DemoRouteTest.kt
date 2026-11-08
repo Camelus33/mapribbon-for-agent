@@ -145,9 +145,67 @@ class DemoRouteTest {
         assertEquals(0.0, s.getValue(aroundCamera.id).metrics[Metric.HARD_BRAKE_RATE], "the camera's braking stays with the camera")
     }
 
+    @Test fun `sleet at the 1100 m summit on Jeju reads as ice on the two segments around the rest area`() {
+        val (knots, s) = run("jeju-1100-ice")
+        val set = anchorsOf("J1100S")
+        assertEquals(9 * set.anchors.size, knots.size)
+        val different = s.values.filter { it.deviation != Deviation.NONE }.map { it.anchor.id }.sorted()
+        assertEquals(listOf("J1100S-S09", "J1100S-S10"), different)
+        for (id in different) {
+            val seg = s.getValue(id)
+            assertEquals(Metric.ICE_RISK_RATE, seg.reasons.first().metric, seg.gist)
+            assertEquals(7.0 / 9, seg.metrics.getValue(Metric.ICE_RISK_RATE), 0.001)
+            assertEquals(0.0, seg.metrics[Metric.OUTSIDE_TEMP_C])
+        }
+        // The 1100 m rest area (18.6 km) lies inside the second of them; the city end stays at 7 °C.
+        assertTrue(set.anchors.single { it.id == "J1100S-S10" }.let { 18_640 in it.alongM..it.endAlongM })
+        assertEquals(7.0, s.getValue("J1100S-S02").metrics[Metric.OUTSIDE_TEMP_C])
+    }
+
+    @Test fun `on the 1100 Road the hairpin braking, the fog past Yeongsil and the camera light up, the junctions do not`() {
+        val (_, s) = run("jeju-1100-fog")
+        val set = anchorsOf("J1100S")
+        val different = s.values.filter { it.deviation != Deviation.NONE }.map { it.anchor.id }.sorted()
+        assertEquals(listOf("J1100S-C01", "J1100S-S07", "J1100S-S12", "J1100S-S13"), different)
+        assertTrue(set.anchors.single { it.id == "J1100S-S07" }.let { 13_525 in it.alongM..it.endAlongM }, "the segment holds the Eorimok hairpin")
+        assertEquals(Metric.HARD_BRAKE_RATE, s.getValue("J1100S-S07").reasons.first().metric)
+        for (id in listOf("J1100S-S12", "J1100S-S13")) {
+            val seg = s.getValue(id)
+            assertEquals(Metric.FOG_ON_RATE, seg.reasons.first().metric, seg.gist)
+            assertTrue(seg.reasons.any { it.metric == Metric.REAR_FOG_RATE }, "rear fog lights make it thick fog: ${seg.reasons}")
+        }
+        assertEquals(3.0 / 9, s.getValue("가상 단속카메라").metrics.getValue(Metric.HARD_BRAKE_RATE), 0.001)
+        assertTrue(s.values.filter { it.anchor.type == AnchorType.JUNCTION }.all { it.deviation == Deviation.NONE })
+        val b = Briefing.build(set.anchors, s.values.toList())
+        assertEquals(listOf("J1100S-S07", "J1100S-S12", "J1100S-C01"), b.labeled.map { it.anchor.id })
+    }
+
+    @Test fun `on Pyeonghwa-ro the queue before the signal sits on open road, the camera and the turn-off light up`() {
+        val (knots, s) = run("jeju-pyeonghwa")
+        val set = anchorsOf("J1135S")
+        assertEquals(9 * set.anchors.size, knots.size)
+        val different = s.values.filter { it.deviation != Deviation.NONE }.map { it.anchor.id }.sorted()
+        assertEquals(listOf("J1135S-C02", "J1135S-J16", "J1135S-S10"), different)
+        val queue = s.getValue("J1135S-S10")
+        assertEquals(Metric.STOP_RATE, queue.reasons.first().metric, queue.gist)
+        assertEquals(4.0 / 9, queue.metrics.getValue(Metric.STOP_RATE), 0.001)
+        // The signal junction itself stays usual: the stop happened 600 m before its zone.
+        assertEquals(Deviation.NONE, s.getValue("광평교차로").deviation)
+        assertEquals(Metric.LATE_LANE_CHANGE_RATE, s.getValue("서광1교차로").reasons.first().metric)
+        assertEquals(Metric.HARD_BRAKE_RATE, s.getValue("J1135S-C02").reasons.first().metric)
+    }
+
+    @Test fun `sleet over the whole 1100 Road is context, never a difference`() {
+        val (_, s) = run("jeju-1100-sleet-everywhere")
+        assertTrue(s.values.all { it.status == RibbonStatus.PUBLISHED })
+        assertTrue(s.values.all { it.deviation == Deviation.NONE }, s.values.filter { it.deviation != Deviation.NONE }.joinToString { it.gist })
+        // The same ice signal as the summit scenario, on every segment: 0 °C and wipers in every car.
+        assertTrue(s.values.filter { it.anchor.type == AnchorType.SEGMENT }.all { it.metrics[Metric.ICE_RISK_RATE] == 1.0 && it.metrics[Metric.OUTSIDE_TEMP_C] == 0.0 })
+    }
+
     @Test fun `every scenario's story is what its ribbons show`() {
         val names = File(assets, "scenarios").list()!!.map { it.removeSuffix(".json") }
-        assertTrue(names.size >= 5)
+        assertTrue(names.size >= 9)
         for (name in names) {
             val scenario = RibbonJson.decodeFromString<Scenario>(File(assets, "scenarios/$name.json").readText())
             assertTrue(scenario.story.isNotEmpty(), "$name has no story")
@@ -171,7 +229,7 @@ class DemoRouteTest {
     }
 
     @Test fun `segments tile the open road between tunnels without gaps or overlaps`() {
-        for (id in listOf("SY60E", "N44E")) {
+        for (id in listOf("SY60E", "N44E", "J1100S", "J1135S")) {
             val set = anchorsOf(id)
             val segs = set.anchors.filter { it.type == AnchorType.SEGMENT }.sortedBy { it.alongM }
             val tunnels = set.anchors.filter { it.type == AnchorType.TUNNEL }

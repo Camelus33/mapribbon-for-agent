@@ -1,0 +1,186 @@
+{
+  "spec": "maptalk.scenario/1",
+  "id": "jeju-1100-ice",
+  "routeId": "J1100S",
+  "title": "1100고지 진눈깨비: 결빙 가능성",
+  "titleEn": "Sleet at the 1100 m summit: possible ice",
+  "description": "제주시는 7°C, 1100고지 양쪽 16.1–18.1 km–18.1–20.1 km 구간은 0°C. 그 구간에서 9대 중 7대가 와이퍼를 켜고 전조등이 켜진다. 젖은 노면이 어는점이라 결빙 가능성으로 읽힌다.",
+  "vehicles": [
+    {
+      "id": "sim-1",
+      "startMinutesAgo": 48,
+      "kmh": 42,
+      "widthClass": "MEDIUM",
+      "tempC": 7,
+      "segments": [
+        {
+          "fromM": 16114,
+          "toM": 20143,
+          "tempC": 0
+        },
+        {
+          "fromM": 16154,
+          "toM": 20103,
+          "wiperLevel": "INTERMITTENT",
+          "lowBeam": true
+        }
+      ]
+    },
+    {
+      "id": "sim-2",
+      "startMinutesAgo": 51,
+      "kmh": 44,
+      "widthClass": "WIDE",
+      "tempC": 7,
+      "segments": [
+        {
+          "fromM": 16114,
+          "toM": 20143,
+          "tempC": 0
+        },
+        {
+          "fromM": 16154,
+          "toM": 20103,
+          "wiperLevel": "INTERMITTENT",
+          "lowBeam": true
+        }
+      ]
+    },
+    {
+      "id": "sim-3",
+      "startMinutesAgo": 54,
+      "kmh": 46,
+      "widthClass": "MEDIUM",
+      "tempC": 7,
+      "segments": [
+        {
+          "fromM": 16114,
+          "toM": 20143,
+          "tempC": 0
+        },
+        {
+          "fromM": 16154,
+          "toM": 20103,
+          "wiperLevel": "INTERMITTENT",
+          "lowBeam": true
+        }
+      ]
+    },
+    {
+      "id": "sim-4",
+      "startMinutesAgo": 57,
+      "kmh": 48,
+      "widthClass": "NARROW",
+      "tempC": 7,
+      "segments": [
+        {
+          "fromM": 16114,
+          "toM": 20143,
+          "tempC": 0
+        },
+        {
+          "fromM": 16154,
+          "toM": 20103,
+          "wiperLevel": "INTERMITTENT",
+          "lowBeam": true
+        }
+      ]
+    },
+    {
+      "id": "sim-5",
+      "startMinutesAgo": 60,
+      "kmh": 42,
+      "widthClass": "MEDIUM",
+      "tempC": 7,
+      "segments": [
+        {
+          "fromM": 16114,
+          "toM": 20143,
+          "tempC": 0
+        },
+        {
+          "fromM": 16154,
+          "toM": 20103,
+          "wiperLevel": "INTERMITTENT",
+          "lowBeam": true
+        }
+      ]
+    },
+    {
+      "id": "sim-6",
+      "startMinutesAgo": 63,
+      "kmh": 44,
+      "widthClass": "WIDE",
+      "tempC": 7,
+      "segments": [
+        {
+          "fromM": 16114,
+          "toM": 20143,
+          "tempC": 0
+        },
+        {
+          "fromM": 16154,
+          "toM": 20103,
+          "wiperLevel": "INTERMITTENT",
+          "lowBeam": true
+        }
+      ]
+    },
+    {
+      "id": "sim-7",
+      "startMinutesAgo": 66,
+      "kmh": 46,
+      "widthClass": "MEDIUM",
+      "tempC": 7,
+      "segments": [
+        {
+          "fromM": 16114,
+          "toM": 20143,
+          "tempC": 0
+        },
+        {
+          "fromM": 16154,
+          "toM": 20103,
+          "wiperLevel": "INTERMITTENT",
+          "lowBeam": true
+        }
+      ]
+    },
+    {
+      "id": "sim-8",
+      "startMinutesAgo": 69,
+      "kmh": 48,
+      "widthClass": "MEDIUM",
+      "tempC": 7,
+      "segments": [
+        {
+          "fromM": 16114,
+          "toM": 20143,
+          "tempC": 0
+        }
+      ]
+    },
+    {
+      "id": "sim-9",
+      "startMinutesAgo": 72,
+      "kmh": 42,
+      "widthClass": "NARROW",
+      "tempC": 7,
+      "segments": [
+        {
+          "fromM": 16114,
+          "toM": 20143,
+          "tempC": 0
+        }
+      ]
+    }
+  ],
+  "story": [
+    {
+      "metric": "iceRiskRate",
+      "fromM": 16114,
+      "toM": 20143,
+      "cars": 7
+    }
+  ]
+}

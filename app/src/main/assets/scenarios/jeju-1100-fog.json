@@ -1,0 +1,225 @@
+{
+  "spec": "maptalk.scenario/1",
+  "id": "jeju-1100-fog",
+  "routeId": "J1100S",
+  "title": "1100도로: 어리목 헤어핀 급제동, 영실 너머 짙은 안개, 카메라 앞 급제동",
+  "titleEn": "1100 Road: hard braking at the Eorimok hairpin, thick fog past Yeongsil, braking at the camera",
+  "description": "12.1–14.1 km 구간 헤어핀에서 9대 중 4대가 급제동한다. 6대가 영실입구삼거리를 지나자마자 안개등을 켜고(4대는 뒤 안개등까지) 3 km를 그대로 간다. 3대가 내리막 가상 단속카메라 앞에서 급제동한다.",
+  "vehicles": [
+    {
+      "id": "sim-1",
+      "startMinutesAgo": 52,
+      "kmh": 42,
+      "widthClass": "MEDIUM",
+      "segments": [
+        {
+          "fromM": 22389,
+          "toM": 25810,
+          "fog": true
+        },
+        {
+          "fromM": 22389,
+          "toM": 25810,
+          "rearFog": true
+        },
+        {
+          "fromM": 26570,
+          "toM": 26770,
+          "kmh": 18
+        },
+        {
+          "fromM": 26560,
+          "toM": 26650,
+          "brake": true
+        }
+      ]
+    },
+    {
+      "id": "sim-2",
+      "startMinutesAgo": 55,
+      "kmh": 44,
+      "widthClass": "WIDE",
+      "segments": [
+        {
+          "fromM": 22389,
+          "toM": 25810,
+          "fog": true
+        },
+        {
+          "fromM": 22389,
+          "toM": 25810,
+          "rearFog": true
+        },
+        {
+          "fromM": 13425,
+          "toM": 13625,
+          "kmh": 20
+        },
+        {
+          "fromM": 13415,
+          "toM": 13505,
+          "brake": true
+        }
+      ]
+    },
+    {
+      "id": "sim-3",
+      "startMinutesAgo": 58,
+      "kmh": 46,
+      "widthClass": "MEDIUM",
+      "segments": [
+        {
+          "fromM": 22389,
+          "toM": 25810,
+          "fog": true
+        },
+        {
+          "fromM": 22389,
+          "toM": 25810,
+          "rearFog": true
+        }
+      ]
+    },
+    {
+      "id": "sim-4",
+      "startMinutesAgo": 61,
+      "kmh": 48,
+      "widthClass": "NARROW",
+      "segments": [
+        {
+          "fromM": 22389,
+          "toM": 25810,
+          "fog": true
+        },
+        {
+          "fromM": 22389,
+          "toM": 25810,
+          "rearFog": true
+        },
+        {
+          "fromM": 26570,
+          "toM": 26770,
+          "kmh": 18
+        },
+        {
+          "fromM": 26560,
+          "toM": 26650,
+          "brake": true
+        },
+        {
+          "fromM": 13425,
+          "toM": 13625,
+          "kmh": 20
+        },
+        {
+          "fromM": 13415,
+          "toM": 13505,
+          "brake": true
+        }
+      ]
+    },
+    {
+      "id": "sim-5",
+      "startMinutesAgo": 64,
+      "kmh": 42,
+      "widthClass": "MEDIUM",
+      "segments": [
+        {
+          "fromM": 22389,
+          "toM": 25810,
+          "fog": true
+        }
+      ]
+    },
+    {
+      "id": "sim-6",
+      "startMinutesAgo": 67,
+      "kmh": 44,
+      "widthClass": "WIDE",
+      "segments": [
+        {
+          "fromM": 22389,
+          "toM": 25810,
+          "fog": true
+        },
+        {
+          "fromM": 13425,
+          "toM": 13625,
+          "kmh": 20
+        },
+        {
+          "fromM": 13415,
+          "toM": 13505,
+          "brake": true
+        }
+      ]
+    },
+    {
+      "id": "sim-7",
+      "startMinutesAgo": 70,
+      "kmh": 46,
+      "widthClass": "MEDIUM",
+      "segments": [
+        {
+          "fromM": 26570,
+          "toM": 26770,
+          "kmh": 18
+        },
+        {
+          "fromM": 26560,
+          "toM": 26650,
+          "brake": true
+        }
+      ]
+    },
+    {
+      "id": "sim-8",
+      "startMinutesAgo": 73,
+      "kmh": 48,
+      "widthClass": "MEDIUM",
+      "segments": [
+        {
+          "fromM": 13425,
+          "toM": 13625,
+          "kmh": 20
+        },
+        {
+          "fromM": 13415,
+          "toM": 13505,
+          "brake": true
+        }
+      ]
+    },
+    {
+      "id": "sim-9",
+      "startMinutesAgo": 76,
+      "kmh": 42,
+      "widthClass": "NARROW",
+      "segments": []
+    }
+  ],
+  "story": [
+    {
+      "metric": "hardBrakeRate",
+      "fromM": 13525,
+      "cars": 4
+    },
+    {
+      "metric": "hardBrakeRate",
+      "fromM": 26710,
+      "cars": 3
+    },
+    {
+      "metric": "fogOnRate",
+      "fromM": 22389,
+      "toM": 25810,
+      "cars": 6
+    },
+    {
+      "metric": "rearFogRate",
+      "fromM": 22389,
+      "toM": 25810,
+      "cars": 4
+    }
+  ]
+}

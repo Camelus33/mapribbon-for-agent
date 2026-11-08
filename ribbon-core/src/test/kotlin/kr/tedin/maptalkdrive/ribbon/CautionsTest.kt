@@ -88,6 +88,32 @@ class CautionsTest {
         assertTrue(cautionsOf("rain-everywhere").isEmpty())
     }
 
+    @Test fun `on the 1100 Road the thick fog past Yeongsil comes first, then the hairpin, then the camera on the descent`() {
+        val cs = cautionsOf("jeju-1100-fog")
+        assertEquals(listOf(Reading.THICK_FOG, Reading.HOLDUP, Reading.CAMERA_BRAKE), cs.map { it.reading })
+        assertEquals(listOf("J1100S-S12", "J1100S-S13"), cs[0].anchorIds, "the two segments below the Yeongsil turn-off")
+        assertTrue(cs[0].onSharpCurves && cs[0].sudden, cs[0].toString())
+        assertTrue(cs[1].hairpins > 0 && cs[1].onSharpCurves, "the Eorimok hairpin: ${cs[1]}")
+        assertEquals(4, cs[1].cars); assertEquals(9, cs[1].n)
+    }
+
+    @Test fun `sleet at the 1100 m summit is a single ice caution on the sharp curves over the top`() {
+        val ice = cautionsOf("jeju-1100-ice").single()
+        assertEquals(Reading.ICE, ice.reading)
+        assertEquals(listOf("J1100S-S09", "J1100S-S10"), ice.anchorIds)
+        assertTrue(ice.onSharpCurves)
+        assertEquals(listOf(CautionAction.SLOW_DOWN_EARLY, CautionAction.AVOID_SUDDEN_INPUTS), ice.actions)
+    }
+
+    @Test fun `on Pyeonghwa-ro the queue on the fast road comes first and the sleet control is nothing`() {
+        val cs = cautionsOf("jeju-pyeonghwa")
+        assertEquals(listOf(Reading.QUEUE, Reading.EXIT_BUSY, Reading.CAMERA_BRAKE), cs.map { it.reading })
+        assertEquals(listOf("J1135S-S10"), cs[0].anchorIds)
+        assertTrue(cs[0].sudden)
+        assertEquals(listOf(CautionAction.CHOOSE_LANE_EARLY), cs[1].actions)
+        assertTrue(cautionsOf("jeju-1100-sleet-everywhere").isEmpty())
+    }
+
     // ---------------------------------------------------------------- the rules, one by one
 
     private fun item(id: String, type: AnchorType, from: Int, to: Int = from, metric: String? = null, d: Deviation = Deviation.NONE,

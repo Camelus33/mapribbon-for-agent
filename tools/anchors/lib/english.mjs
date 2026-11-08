@@ -1,8 +1,8 @@
 // English names for screens outside Korea. OSM name:en wins; otherwise the Korean name is romanised (Revised
 // Romanisation, syllable by syllable, no sound-change rules) and the facility word translated. A few names have a
 // published English form that romanisation cannot guess; they are listed here.
-export const ENGLISH_OVERRIDES = { '인제양양터널': 'Inje-Yangyang Tunnel' };
-const SUFFIXES = [['터널', 'Tunnel'], ['분기점', 'JC'], ['나들목', 'IC'], ['요금소', 'Tollgate'], ['영업소', 'Tollgate'], ['IC', 'IC'], ['JC', 'JC'], ['TG', 'TG']];
+export const ENGLISH_OVERRIDES = { '인제양양터널': 'Inje-Yangyang Tunnel', '렛츠런파크교차로': "Let's Run Park Junction", '1100로': '1100 Road', '평화로': 'Pyeonghwa-ro' };
+const SUFFIXES = [['터널', 'Tunnel'], ['분기점', 'JC'], ['나들목', 'IC'], ['요금소', 'Tollgate'], ['영업소', 'Tollgate'], ['교차로', 'Junction'], ['삼거리', 'Junction'], ['사거리', 'Crossroad'], ['오거리', 'Crossroad'], ['입구', 'Entrance'], ['IC', 'IC'], ['JC', 'JC'], ['TG', 'TG']];
 const INITIAL = ['g', 'kk', 'n', 'd', 'tt', 'r', 'm', 'b', 'pp', 's', 'ss', '', 'j', 'jj', 'ch', 'k', 't', 'p', 'h'];
 const MEDIAL = ['a', 'ae', 'ya', 'yae', 'eo', 'e', 'yeo', 'ye', 'o', 'wa', 'wae', 'oe', 'yo', 'u', 'wo', 'we', 'wi', 'yu', 'eu', 'ui', 'i'];
 const FINAL = ['', 'k', 'k', 'k', 'n', 'n', 'n', 't', 'l', 'k', 'm', 'l', 'l', 'l', 'p', 'l', 'm', 'p', 'p', 't', 't', 'ng', 't', 't', 'k', 't', 'p', 't'];
