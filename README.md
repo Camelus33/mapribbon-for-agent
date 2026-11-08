@@ -19,6 +19,11 @@
     - 사이에 평소대로이거나 차가 적은 곳 없이 이어지는 같은 일은 한 곳으로 묶는다(예: 터널 출구와 그 뒤 두 구간의 안개). 길 모양만으로는 조심할 곳을 만들지 않는다.
     - 한 곳의 뜻은 그곳의 이유 중 가장 무거운 것으로 정한다. 예를 들어 낮 전조등이 더 튀어도, 고속 와이퍼가 함께 있으면 폭우 가능성으로 읽는다.
     - 가중치는 상식에 따른 초기값이고, 데이터로 맞춘 값이 아니다.
+  - **길의 높이**: 지도 아래에 같은 km 눈금으로 고도 띠를 붙인다. 높이는 새 조심할 곳을 만들지 않고, 지도에 뜬 곳이 왜 거기인지 보여 준다.
+    - **긴 내리막**(3% 넘게 2 km 이상, 평균 4% 이상)은 급커브처럼 굵고 진하게, 길이와 평균 경사를 붙여 그린다. 1100도로 `내리막 14.0 km · 평균 7%`, 한계령 `내리막 4.6 km · 평균 8%`, 평화로 `내리막 4.7 km · 평균 5%`. 고속도로에는 없다.
+    - 지나간 차들이 외기온도를 보고했으면, 가장 앞 구간의 기온에서 1 km 오를 때마다 6.5°C씩 내려 **3°C 이하가 예상되는 높이**를 점선으로 긋고 그 위를 칠한다(제주 결빙 시나리오: 해발 732 m 위). 차들이 관측한 결빙 구간(16.1–20.1 km)이 그 안에 든다. 주차한 이 차의 센서값은 햇볕과 엔진 열을 타서 쓰지 않는다.
+    - 터널은 지도와 같은 옅은 띠로, 입구 두 곳의 높이를 잇는 직선으로 그린다. 지형 모델을 그대로 쓰면 인제양양터널 안에서 차가 산 위로 올라간다.
+    - 세로는 과장되어 있고(4–11배) 띠 아래에 배율을 적는다.
   - 글과 지도는 겹치지 않는다. 왼쪽 600dp에 글(조심할 곳, 범례, 접힌 전체 목록)을 두고, 오른쪽 영역에만 경로를 맞춰 그린다.
   - 경로 지도는 실제 도로 모양을 출발지(왼쪽 아래)에서 목적지(오른쪽 위)로 놓는다.
   - **도로가 얼마나 휘었는지를 선의 굵기와 진하기로 그린다.** 직선(반경 2 km 이상)은 가늘고 옅게, 굽은 길(500 m~2 km)은 굵고 진하게, 급커브(500 m 미만)는 가장 굵고 진하게 그린다. 반경은 경로 선형에서 계산한다(`ribbon-core` `geo/Curvature`).
@@ -131,7 +136,7 @@ Gleo AI용 함수 네 개(`get_route_ribbons`, `get_next_unusual`, `get_cautions
 ## 빌드
 
 ```
-./gradlew :ribbon-core:test        # 핵심 로직 테스트 59개 (네 실제 노선 끝-끝, 곡률·구간·날씨·조심할 곳 포함)
+./gradlew :ribbon-core:test        # 핵심 로직 테스트 70개 (네 실제 노선 끝-끝, 곡률·고도·구간·날씨·조심할 곳 포함)
 ./gradlew :app:submissionApk       # apk/Tedin_MapRibbonForAgent_release.apk 생성
 ```
 
@@ -141,10 +146,10 @@ Gleo AI용 함수 네 개(`get_route_ribbons`, `get_next_unusual`, `get_cautions
 
 | 경로 | 내용 |
 |---|---|
-| `ribbon-core/` | Android·Pleos에 의존하지 않는 Kotlin 라이브러리. 차량과 (향후) 서버가 같은 코드를 쓴다. `detect`(매듭), `agg`(리본·평소값·이웃 비교), `brief`(경로 브리핑, 뜻 읽기, 조심할 곳), `geo`(경로 색인, 곡률·헤어핀, 해의 높이), `pseudo`(익명 토큰), `spec`(규격), `demo`(시나리오) |
-| `app/` | AAOS 앱. `channel/`(기기 안의 리본 채널, 기록 서비스, 다른 에이전트용 ContentProvider), `adapter/`(Pleos Vehicle·FusedLocation·NaviHelper. 신호 하나가 실패해도 앱은 계속 동작), `ui/`(경로 지도, 조심할 곳, 아이콘, 기록 중 화면, 시연 패널, 색·글자 토큰), `res/values*/`(영어·한국어 문구) |
+| `ribbon-core/` | Android·Pleos에 의존하지 않는 Kotlin 라이브러리. 차량과 (향후) 서버가 같은 코드를 쓴다. `detect`(매듭), `agg`(리본·평소값·이웃 비교), `brief`(경로 브리핑, 뜻 읽기, 조심할 곳), `geo`(경로 색인, 곡률·헤어핀, 고도·긴 내리막·기온 예측, 해의 높이), `pseudo`(익명 토큰), `spec`(규격), `demo`(시나리오) |
+| `app/` | AAOS 앱. `channel/`(기기 안의 리본 채널, 기록 서비스, 다른 에이전트용 ContentProvider), `adapter/`(Pleos Vehicle·FusedLocation·NaviHelper. 신호 하나가 실패해도 앱은 계속 동작), `ui/`(경로 지도, 고도 띠, 조심할 곳, 아이콘, 기록 중 화면, 시연 패널, 색·글자 토큰), `res/values*/`(영어·한국어 문구) |
 | `app/src/main/assets/gleo/` | Gleo AI 함수 스키마 |
-| `tools/anchors/` | OSM에서 시연 노선과 시설물 추출(영어 이름 포함). `build-anchors.mjs`는 고속도로, `build-route44.mjs`는 한계령(일방통행 쌍을 고려한 최단 경로, 다른 번호 도로와 만나는 곳을 분기점으로), `build-jeju.mjs`는 제주 두 코스(번호 도로를 따라가되 번호 없는 회전교차로는 건너는 가중 최단 경로. 다른 번호 도로가 닿는 곳, 다른 도로로 꺾는 곳, 이름 있는 교차로를 분기점으로) → `app/src/main/assets/routes/<id>/{route.geojson,anchors.json}` |
+| `tools/anchors/` | OSM에서 시연 노선과 시설물 추출(영어 이름 포함). `build-anchors.mjs`는 고속도로, `build-route44.mjs`는 한계령(일방통행 쌍을 고려한 최단 경로, 다른 번호 도로와 만나는 곳을 분기점으로), `build-jeju.mjs`는 제주 두 코스(번호 도로를 따라가되 번호 없는 회전교차로는 건너는 가중 최단 경로. 다른 번호 도로가 닿는 곳, 다른 도로로 꺾는 곳, 이름 있는 교차로를 분기점으로) → `app/src/main/assets/routes/<id>/{route.geojson,anchors.json}`. `build-elevation.mjs <id>`는 만들어진 노선에 고도를 붙인다(50 m 간격, OSM 다리·터널 구간은 양 끝을 직선으로) → `elevation.json` |
 | `tools/scenarios/` | 시연 시나리오와 평소값 생성 → `app/src/main/assets/{scenarios/,baseline.json}` |
 
 ## 개인정보 설계
@@ -182,5 +187,6 @@ Gleo AI용 함수 네 개(`get_route_ribbons`, `get_next_unusual`, `get_cautions
 ## 데이터 출처와 라이선스
 
 - 노선과 시설물: © OpenStreetMap contributors, ODbL 1.0 (https://www.openstreetmap.org/copyright). `app/src/main/assets/routes/` 아래 파일은 ODbL을 따른다.
+- 노선의 높이: Copernicus DEM GLO-90을 Open-Meteo 고도 API로 조회. © DLR e.V. 2010–2014 and © Airbus Defence and Space GmbH 2014–2018, provided under COPERNICUS by the European Union and ESA. 앱의 고도 띠 아래에 같은 표기를 붙인다.
 - 확인한 공공데이터: 전국무인교통단속카메라표준데이터, CCTV정보 표준데이터 (공공데이터포털). 강원 두 노선 위의 카메라는 찾지 못했고, 제주 두 노선은 파일을 내려받지 못해 모두 가상 카메라로 대신했다. 앱에 들어간 시설물은 모두 OpenStreetMap에서 왔다.
 - 제주 시나리오 자리의 근거: 제주특별자치도 1100도로·516도로 제한속도 하향(2017, 서울신문 보도), 2026년 1월 대설 때 1100도로·516도로 통제(JIBS·twig24 보도), 제주대 「제주 지방도 과속 실태」(KoreaScience, 2016), 평화로 구간단속 도입(2017, 서울신문 보도).

@@ -155,4 +155,8 @@
     <string name="navi_destination">destination</string>
     <string name="navi_arrived">Arrived</string>
     <string name="navi_cancelled">Route cancelled</string>
+    <string name="elev_descent">%1$s down · avg %2$d%%</string>
+    <string name="elev_cold">%1$s °C or colder expected above %2$s m</string>
+    <string name="elev_cold_basis">Temperature line from %2$s °C reported at %1$s, cooling %3$s °C per km of height</string>
+    <string name="elev_note">Height ×%1$d exaggerated</string>
 </resources>

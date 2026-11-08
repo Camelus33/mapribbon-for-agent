@@ -37,6 +37,8 @@ data class Tokens(
     val actionInk: Color,
     /** The band under a tunnel stretch: quieter than any road class so the curvature line stays readable through it. */
     val tunnel: Color,
+    /** Air expected cold enough for a wet road to freeze: the dashed line and tint on the elevation strip. */
+    val cold: Color,
 ) {
     /** "Somewhat different from usual": circle. */
     val some = Color(0xFFFAB219)
@@ -53,6 +55,7 @@ val DarkTokens = Tokens(
     position = Color(0xFFF0EFEC), positionRing = Color(0xFF1A1A19),
     actionBg = Color(0xFFF0EFEC), actionInk = Color(0xFF1A1A19),
     tunnel = Color(0xFF2A2A28),
+    cold = Color(0xFF6FA8DC),
 )
 
 val LightTokens = Tokens(
@@ -63,6 +66,7 @@ val LightTokens = Tokens(
     position = Color(0xFF0B0B0B), positionRing = Color(0xFFFCFCFB),
     actionBg = Color(0xFF0B0B0B), actionInk = Color(0xFFFCFCFB),
     tunnel = Color(0xFFE9E8E2),
+    cold = Color(0xFF3B7FC4),
 )
 
 val LocalTokens = staticCompositionLocalOf { DarkTokens }

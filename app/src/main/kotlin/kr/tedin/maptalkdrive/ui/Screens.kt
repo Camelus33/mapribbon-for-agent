@@ -101,6 +101,8 @@ fun AppScreen(vm: RibbonViewModel, restricted: Boolean) {
 
 // ---------------------------------------------------------------- before departure
 
+private val ElevationHeight = 260.dp
+
 @Composable
 private fun BriefingScreen(vm: RibbonViewModel, s: ChannelState, preview: State<Double?>, t: Tokens, w: Words, onOpenDemo: () -> Unit) {
     val running by remember { derivedStateOf { preview.value != null } }
@@ -154,10 +156,14 @@ private fun BriefingScreen(vm: RibbonViewModel, s: ChannelState, preview: State<
                     AllPlaces(different, w, t)
                 }
             }
-            RouteMap(
-                b, r.route, r.curves, r.hairpins, start, end, t,
-                reserved = emptyList(), preview = preview, chipSpecs = chips, modifier = Modifier.weight(1f).fillMaxHeight(),
-            )
+            // The road's height sits under the map on the same kilometres, when the route has heights.
+            Column(Modifier.weight(1f).fillMaxHeight()) {
+                RouteMap(
+                    b, r.route, r.curves, r.hairpins, start, end, t,
+                    reserved = emptyList(), preview = preview, chipSpecs = chips, modifier = Modifier.weight(1f).fillMaxWidth(),
+                )
+                r.elevation?.let { ElevationStrip(it, b, t, w, preview, Modifier.fillMaxWidth().height(ElevationHeight)) }
+            }
         }
         Spacer(Modifier.height(16.dp))
         Row(verticalAlignment = Alignment.CenterVertically) {

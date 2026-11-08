@@ -144,4 +144,8 @@
     <string name="navi_destination">목적지</string>
     <string name="navi_arrived">목적지 도착</string>
     <string name="navi_cancelled">경로 취소</string>
+    <string name="elev_descent">내리막 %1$s · 평균 %2$d%%</string>
+    <string name="elev_cold">해발 %2$s m 위 %1$s°C 이하 예상</string>
+    <string name="elev_cold_basis">기온선은 %1$s 지점 %2$s°C에서 1 km 오를 때마다 %3$s°C씩 내려 추정</string>
+    <string name="elev_note">세로 %1$d배 과장</string>
 </resources>
