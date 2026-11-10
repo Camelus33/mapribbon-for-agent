@@ -64,6 +64,9 @@ import kr.tedin.maptalkdrive.R
 import kr.tedin.maptalkdrive.channel.ChannelState
 import kr.tedin.maptalkdrive.channel.LivePhase
 import kr.tedin.maptalkdrive.demo.RibbonViewModel
+import kr.tedin.maptalkdrive.demo.WeaveFrame
+import kr.tedin.maptalkdrive.ribbon.brief.Weave
+import kr.tedin.maptalkdrive.ribbon.spec.Metric
 import kr.tedin.maptalkdrive.ribbon.brief.Briefing
 import kr.tedin.maptalkdrive.ribbon.brief.BriefingItem
 import kr.tedin.maptalkdrive.ribbon.geo.CurveClass
@@ -79,7 +82,7 @@ private val SidePanel = 600.dp
 private val Touch = 76.dp
 
 /**
- * Before departure the app shows the route and what the ribbons on it say, and can run the route as a preview. While
+ * Before departure the app shows the route and what the ribbons on it say, and can replay how those ribbons tied. While
  * the car moves (CarUxRestrictions) it shows only that this car's agent is recording: no map, no position, no
  * controls. The navigation stays the driver's guide.
  */
@@ -90,13 +93,14 @@ fun AppScreen(vm: RibbonViewModel, restricted: Boolean) {
     val s by vm.channel.state.collectAsState()
     // The preview position changes every frame; it is passed as State and read only where it is drawn.
     val preview = vm.preview.collectAsState()
+    val weave = vm.weave.collectAsState()
     var sheet by rememberSaveable { mutableStateOf(false) }
-    LaunchedEffect(restricted) { if (restricted) { vm.stopPreview(); sheet = false } }
+    LaunchedEffect(restricted) { if (restricted) { vm.stopPreview(); vm.stopWeave(); sheet = false } }
     Box(Modifier.fillMaxSize().background(t.surface)) {
         if (restricted || s.recording) {
             RecordingScreen(vm, s, restricted, t, w)
         } else {
-            BriefingScreen(vm, s, preview, t, w, onOpenDemo = { sheet = true })
+            BriefingScreen(vm, s, preview, weave, t, w, onOpenDemo = { sheet = true })
             if (sheet) DemoPanel(vm, s, t, w, onClose = { sheet = false }, Modifier.align(Alignment.CenterEnd))
         }
     }
@@ -107,8 +111,13 @@ fun AppScreen(vm: RibbonViewModel, restricted: Boolean) {
 private val ElevationHeight = 260.dp
 
 @Composable
-private fun BriefingScreen(vm: RibbonViewModel, s: ChannelState, preview: State<Double?>, t: Tokens, w: Words, onOpenDemo: () -> Unit) {
+private fun BriefingScreen(
+    vm: RibbonViewModel, s: ChannelState, preview: State<Double?>, weave: State<WeaveFrame?>, t: Tokens, w: Words, onOpenDemo: () -> Unit,
+) {
     val running by remember { derivedStateOf { preview.value != null } }
+    val weaving by remember { derivedStateOf { weave.value != null } }
+    // Until the replay reaches its verdict the map and the height strip show the route untied.
+    val untied by remember { derivedStateOf { weave.value.untied() } }
     val r = vm.channel.routeData(s.routeId)
     val set = r.anchorSet
     val b = s.briefing
@@ -116,6 +125,16 @@ private fun BriefingScreen(vm: RibbonViewModel, s: ChannelState, preview: State<
     // The navigation's route on screen: where it came from, whether it is the navigation's line, how fresh its ribbons are.
     val live = s.live
     val onLive = live != null && live.routeId == s.routeId
+    // Where to take care, ranked; the map numbers them the same way.
+    val cautions = remember(b, r) { Cautions.build(b, r.curves, r.hairpins, System.currentTimeMillis()) }
+    val chips = remember(cautions, w) {
+        cautions.map { c -> ChipSpec(c.rank, c.metric, w.count(b.items.first { it.anchor.id == c.leadId }), c.pointM, c.deviation) }
+    }
+    // How the ribbons on screen tied, replayed from their counts. A replay of other ribbons is dropped.
+    val plan = remember(b, r, cautions) { Weave.plan(b, cautions, r.route.lengthM, r.elevation?.highestAtM) }
+    LaunchedEffect(plan) { vm.dropWeaveUnless(plan) }
+    // The replay being drawn; this changes when a replay starts or ends, not on every frame.
+    val weavePlan by remember { derivedStateOf { weave.value?.plan } }
     Column(Modifier.fillMaxSize().padding(start = Gutter, end = Gutter, top = 32.dp, bottom = 24.dp)) {
         Row(verticalAlignment = Alignment.CenterVertically) {
             Column(Modifier.weight(1f)) {
@@ -158,15 +177,17 @@ private fun BriefingScreen(vm: RibbonViewModel, s: ChannelState, preview: State<
         // the right, where the road runs from bottom-left (start) to top-right (destination). Text over the road makes
         // both unreadable, so the map has its own area and nothing is drawn over it but its own chips.
         Row(Modifier.weight(1f).fillMaxWidth()) {
-            // Where to take care, ranked; the map numbers them the same way.
-            val cautions = remember(b, r) { Cautions.build(b, r.curves, r.hairpins, System.currentTimeMillis()) }
-            val chips = remember(cautions, w) {
-                cautions.map { c -> ChipSpec(c.rank, c.metric, w.count(b.items.first { it.anchor.id == c.leadId }), c.pointM, c.deviation) }
-            }
             val different = b.items.filter { it.different }.sortedWith(compareByDescending<BriefingItem> { it.state.deviation.ordinal }.thenBy { it.pointM })
+            val bare = remember(b) { b.untied() }
+            val shown = if (untied) bare else b
+            val weaveLabels = remember(w) { WeaveLabels(w.str(R.string.weave_threshold_mark)) { k, n -> w.str(R.string.count_cars, k, n) } }
             Column(Modifier.width(SidePanel).fillMaxHeight().verticalScroll(rememberScrollState()).padding(top = 20.dp, end = 32.dp, bottom = 12.dp)) {
                 if (running) {
                     PreviewCard(b, preview, w, t)
+                } else if (weaving) {
+                    // The cold line on the height strip is the same place seen from below, when there is one.
+                    val coldHint = plan.metric == Metric.ICE_RISK_RATE && r.elevation != null && tempRef(b) != null
+                    WeaveCard(weavePlan ?: plan, weave, b, coldHint, w, t)
                 } else if (cautions.isNotEmpty()) {
                     CautionList(cautions, b, w, t)
                     if (b.notEnoughCount > 0) {
@@ -178,7 +199,7 @@ private fun BriefingScreen(vm: RibbonViewModel, s: ChannelState, preview: State<
                 }
                 Spacer(Modifier.height(24.dp))
                 Legend(b, r.curves.map { it.curve }.toSet(), r.hairpins.isNotEmpty(), w, t)
-                if (!running && different.isNotEmpty()) {
+                if (!running && !weaving && different.isNotEmpty()) {
                     Spacer(Modifier.height(16.dp))
                     AllPlaces(different, w, t)
                 }
@@ -186,35 +207,47 @@ private fun BriefingScreen(vm: RibbonViewModel, s: ChannelState, preview: State<
             // The road's height sits under the map on the same kilometres, when the route has heights.
             Column(Modifier.weight(1f).fillMaxHeight()) {
                 RouteMap(
-                    b, r.route, r.curves, r.hairpins, start, end, t,
-                    reserved = emptyList(), preview = preview, chipSpecs = chips, modifier = Modifier.weight(1f).fillMaxWidth(),
+                    shown, r.route, r.curves, r.hairpins, start, end, t,
+                    reserved = emptyList(), preview = preview, chipSpecs = if (untied) emptyList() else chips,
+                    weave = weave, weaveLabels = weaveLabels, modifier = Modifier.weight(1f).fillMaxWidth(),
                 )
-                r.elevation?.let { ElevationStrip(it, b, t, w, preview, Modifier.fillMaxWidth().height(ElevationHeight)) }
+                r.elevation?.let { ElevationStrip(it, shown, t, w, preview, Modifier.fillMaxWidth().height(ElevationHeight)) }
             }
         }
         Spacer(Modifier.height(16.dp))
         Row(verticalAlignment = Alignment.CenterVertically) {
+            val note = when {
+                running -> w.str(R.string.preview_desc)
+                weaving -> w.str(R.string.weave_desc)
+                else -> null
+            }
             Text(
-                if (running) w.str(R.string.preview_desc) else set.attribution,
-                style = if (running) Type.caption else Type.legal, color = if (running) t.ink2 else t.muted,
+                note ?: set.attribution,
+                style = if (note != null) Type.caption else Type.legal, color = if (note != null) t.ink2 else t.muted,
                 modifier = Modifier.weight(1f),
             )
-            if (!running) {
-                Button(
-                    onClick = { vm.startPreview() },
-                    modifier = Modifier.height(Touch),
-                    shape = RoundedCornerShape(12.dp),
-                    colors = ButtonDefaults.buttonColors(containerColor = t.actionBg, contentColor = t.actionInk),
-                ) {
-                    IconBox(24.dp) { c, sz -> playIcon(c, sz, t.actionInk) }
-                    Spacer(Modifier.width(12.dp))
-                    Text(w.str(R.string.preview_run), style = Type.button, modifier = Modifier.padding(end = 8.dp))
-                }
-            } else {
-                OutlinedButton(onClick = { vm.stopPreview() }, modifier = Modifier.height(Touch), shape = RoundedCornerShape(12.dp)) {
+            when {
+                running -> OutlinedButton(onClick = { vm.stopPreview() }, modifier = Modifier.height(Touch), shape = RoundedCornerShape(12.dp)) {
                     IconBox(24.dp) { c, sz -> stopIcon(c, sz, t.ink) }
                     Spacer(Modifier.width(12.dp))
                     Text(w.str(R.string.preview_stop), style = Type.button, color = t.ink)
+                }
+                weaving -> OutlinedButton(onClick = { vm.stopWeave() }, modifier = Modifier.height(Touch), shape = RoundedCornerShape(12.dp)) {
+                    Text(w.str(R.string.weave_close), style = Type.button, color = t.ink, modifier = Modifier.padding(horizontal = 8.dp))
+                }
+                else -> {
+                    // A replay needs cars: on a route nobody drove yet there is nothing to tie.
+                    Button(
+                        onClick = { vm.startWeave(plan) },
+                        enabled = plan.cars > 0,
+                        modifier = Modifier.height(Touch),
+                        shape = RoundedCornerShape(12.dp),
+                        colors = ButtonDefaults.buttonColors(containerColor = t.actionBg, contentColor = t.actionInk),
+                    ) {
+                        IconBox(24.dp) { c, sz -> playIcon(c, sz, if (plan.cars > 0) t.actionInk else t.muted) }
+                        Spacer(Modifier.width(12.dp))
+                        Text(w.str(R.string.weave_run), style = Type.button, modifier = Modifier.padding(end = 8.dp))
+                    }
                 }
             }
         }

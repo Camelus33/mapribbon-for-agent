@@ -32,6 +32,7 @@ import androidx.compose.ui.text.rememberTextMeasurer
 import androidx.compose.ui.unit.Density
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
+import kr.tedin.maptalkdrive.demo.WeaveFrame
 import kr.tedin.maptalkdrive.ribbon.brief.Briefing
 import kr.tedin.maptalkdrive.ribbon.brief.BriefingItem
 import kr.tedin.maptalkdrive.ribbon.geo.CurveClass
@@ -129,8 +130,9 @@ const val StretchAlpha = 0.45f
  * Hairpins are marked on the road, the tightest first; one that would touch a facility or another hairpin on screen is
  * left out, so on a pass the marks show where the worst bends are rather than every one.
  *
- * `preview` puts the preview-run dot on the road and dims what it has passed. It is read only while drawing the
- * overlay, so a moving dot redraws the overlay and nothing else.
+ * `preview` puts the preview-run dot on the road and dims what it has passed; `weave` draws the replay of how the
+ * ribbons tied ([drawWeave]). Both are read only while drawing the overlay, so a moving frame redraws the overlay and
+ * nothing else.
  */
 @Composable
 fun RouteMap(
@@ -144,6 +146,8 @@ fun RouteMap(
     reserved: List<Rect>,
     preview: State<Double?>,
     chipSpecs: List<ChipSpec>,
+    weave: State<WeaveFrame?>,
+    weaveLabels: WeaveLabels,
     modifier: Modifier = Modifier,
 ) {
     val tm = rememberTextMeasurer()
@@ -153,6 +157,7 @@ fun RouteMap(
         val hPx = with(density) { maxHeight.toPx() }
         val inset = with(density) { 56.dp.toPx() }
         val geo = remember(route, wPx, hPx) { RouteGeometry(route, Rect(inset, inset, wPx - inset, hPx - inset)) }
+        val weaveLayouts = remember(geo) { WeaveLayoutCache(geo) }
         Box(Modifier.fillMaxSize()) {
             // The map is drawn into its own offscreen layer: the preview dot above it redraws without re-recording the map.
             Spacer(
@@ -229,6 +234,7 @@ fun RouteMap(
                 },
             )
             Canvas(Modifier.fillMaxSize().graphicsLayer()) {
+                weave.value?.let { f -> drawWeave(f.t, weaveLayouts.of(f.plan), geo, t, tm, weaveLabels) }
                 val previewAlongM = preview.value
                 if (previewAlongM != null) {
                     // What the preview has passed fades back; the dot runs on the road.

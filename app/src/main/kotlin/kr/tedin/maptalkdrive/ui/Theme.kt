@@ -39,6 +39,8 @@ data class Tokens(
     val tunnel: Color,
     /** Air expected cold enough for a wet road to freeze: the dashed line and tint on the elevation strip. */
     val cold: Color,
+    /** A knot in the replay of how ribbons tie, where the car did the story's thing; usual knots are [muted]. */
+    val knot: Color,
 ) {
     /** "Somewhat different from usual": circle. */
     val some = Color(0xFFFAB219)
@@ -56,6 +58,7 @@ val DarkTokens = Tokens(
     actionBg = Color(0xFFF0EFEC), actionInk = Color(0xFF1A1A19),
     tunnel = Color(0xFF2A2A28),
     cold = Color(0xFF6FA8DC),
+    knot = Color(0xFF5FA2E8),
 )
 
 val LightTokens = Tokens(
@@ -67,6 +70,7 @@ val LightTokens = Tokens(
     actionBg = Color(0xFF0B0B0B), actionInk = Color(0xFFFCFCFB),
     tunnel = Color(0xFFE9E8E2),
     cold = Color(0xFF3B7FC4),
+    knot = Color(0xFF2F7FD6),
 )
 
 val LocalTokens = staticCompositionLocalOf { DarkTokens }

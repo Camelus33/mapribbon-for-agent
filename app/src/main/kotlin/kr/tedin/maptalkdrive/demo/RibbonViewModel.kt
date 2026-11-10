@@ -10,10 +10,16 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
 import kr.tedin.maptalkdrive.channel.RibbonChannel
+import kr.tedin.maptalkdrive.ribbon.brief.Cautions
+import kr.tedin.maptalkdrive.ribbon.brief.Weave
+import kr.tedin.maptalkdrive.ribbon.brief.WeavePlan
+
+/** One moment of the replay of how the ribbons on the route came to be ("knots become a ribbon"), `t` seconds in. */
+data class WeaveFrame(val plan: WeavePlan, val t: Double)
 
 /**
- * The screen's view of the channel plus the one thing only the screen has: the preview run, a dot that runs the
- * route before departure. The preview reads ribbons and writes nothing; knots come only from driving.
+ * The screen's view of the channel plus what only the screen has: the replay of how the ribbons tied, and the preview
+ * run, a dot that runs the route before departure. Both read ribbons and write nothing; knots come only from driving.
  */
 class RibbonViewModel(app: Application) : AndroidViewModel(app) {
     val channel = RibbonChannel.get(app)
@@ -32,6 +38,7 @@ class RibbonViewModel(app: Application) : AndroidViewModel(app) {
      */
     fun startPreview(runMs: Long = 24_000, dwellMs: Long = 1_800) {
         stopPreview()
+        stopWeave()
         val length = current.route.lengthM
         previewJob = viewModelScope.launch {
             val stops = channel.state.value.briefing.items.filter { it.different }.map { it.pointM.toDouble() }.sorted()
@@ -62,5 +69,43 @@ class RibbonViewModel(app: Application) : AndroidViewModel(app) {
     fun stopPreview() {
         previewJob?.cancel(); previewJob = null
         _preview.value = null
+    }
+
+    private val _weave = MutableStateFlow<WeaveFrame?>(null)
+    /** The replay on screen, or null. It runs to [WeavePlan.endS] and then holds its last frame until closed. */
+    val weave: StateFlow<WeaveFrame?> = _weave
+    private var weaveJob: Job? = null
+
+    /** The replay of the ribbons on the route on screen now, as the screen plans it. */
+    fun planWeave(): WeavePlan {
+        val s = channel.state.value
+        val r = channel.routeData(s.routeId)
+        val cautions = Cautions.build(s.briefing, r.curves, r.hairpins, System.currentTimeMillis())
+        return Weave.plan(s.briefing, cautions, r.route.lengthM, r.elevation?.highestAtM)
+    }
+
+    fun startWeave(plan: WeavePlan) {
+        stopPreview()
+        stopWeave()
+        weaveJob = viewModelScope.launch {
+            val t0 = SystemClock.uptimeMillis()
+            while (true) {
+                val t = (SystemClock.uptimeMillis() - t0) / 1000.0
+                _weave.value = WeaveFrame(plan, minOf(t, plan.endS))
+                if (t >= plan.endS) break
+                delay(32) // 30 frames a second: knots fall and cars run smoothly at half the work of 60
+            }
+        }
+    }
+
+    fun stopWeave() {
+        weaveJob?.cancel(); weaveJob = null
+        _weave.value = null
+    }
+
+    /** A replay of other ribbons (another route, or counts that changed since) no longer says what the screen shows. */
+    fun dropWeaveUnless(plan: WeavePlan) {
+        val on = _weave.value?.plan ?: return
+        if (on.places != plan.places || on.metric != plan.metric) stopWeave()
     }
 }

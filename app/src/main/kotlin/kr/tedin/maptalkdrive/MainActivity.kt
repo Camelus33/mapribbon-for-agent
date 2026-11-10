@@ -81,16 +81,21 @@ class MainActivity : ComponentActivity() {
 
     /**
      * Repeatable demo for recording and measurement:
-     * `adb shell am start -n kr.tedin.maptalkdrive/.MainActivity --es demo_scenario local-weather --ez demo_preview true`
+     * `adb shell am start -n kr.tedin.maptalkdrive/.MainActivity --es demo_scenario local-weather --ez demo_preview true`;
+     * `--ez demo_weave true` replays how the ribbons tied instead.
      */
     private fun runScriptedDemo(intent: Intent) {
         val scenario = intent.getStringExtra("demo_scenario") ?: return
         val preview = intent.getBooleanExtra("demo_preview", false) || intent.getIntExtra("demo_drive_speedup", 0) > 0
+        val weave = intent.getBooleanExtra("demo_weave", false)
         lifecycleScope.launch {
             vm.channel.runScenario(scenario)
             vm.channel.state.first { !it.replaying }
-            if (preview) {
+            if (weave) {
                 delay(3_000) // leave the filled briefing on screen for a moment
+                vm.startWeave(vm.planWeave())
+            } else if (preview) {
+                delay(3_000)
                 vm.startPreview()
             }
         }

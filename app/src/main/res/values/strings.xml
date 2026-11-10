@@ -5,7 +5,6 @@
     <!-- Briefing -->
     <string name="sim_data">Simulated data</string>
     <string name="demo">Demo</string>
-    <string name="preview_run">Preview run</string>
     <string name="preview_stop">Stop</string>
     <string name="tunnel_exit">%1$s exit</string>
     <string name="speed_camera">Speed camera</string>
@@ -186,4 +185,39 @@
     <string name="demo_send_cars">Send simulated cars</string>
     <string name="demo_bundled">Bundled route</string>
     <string name="demo_show_bundled">Show the bundled route\'s cards (not the navigation route)</string>
+
+    <!-- How ribbons tie: the replay that replaced the preview run's button -->
+    <string name="weave_run">How ribbons tie</string>
+    <string name="weave_close">Close</string>
+    <string name="weave_desc">The knots the passing cars left, replayed. No car\'s own track is used, only how many cars did what at each place.</string>
+    <string name="weave_title">When knots become a ribbon</string>
+    <string name="weave_key_usual">as usual</string>
+    <string name="weave_threshold_mark">3-car threshold ✓</string>
+    <string name="weave_cars">Cars that drove this road: %1$d.</string>
+    <string name="weave_cars_varied">Between %1$d and %2$d cars passed each place.</string>
+    <string name="weave_knots">Each car leaves one knot at every place it passes.</string>
+    <string name="weave_colours">Grey is as usual, blue is “%1$s”.</string>
+    <string name="weave_threshold">✓ %2$d different cars have passed %1$s. A place is judged from %2$d cars; fewer are never published.</string>
+    <string name="weave_judge_title">Verdict · %1$s</string>
+    <string name="weave_judge">A ribbon ties only where it is above its neighbours and above usual.</string>
+    <string name="weave_judge_neighbours_only">No usual value yet: compared with its neighbours.</string>
+    <string name="weave_this">Here</string>
+    <string name="weave_neighbours">Neighbours</string>
+    <string name="weave_usual">Usually</string>
+    <string name="weave_usual_almost_none">almost none</string>
+    <string name="weave_usual_about">~%1$d of %2$d</string>
+    <string name="weave_usual_unknown">no usual value</string>
+    <string name="weave_verdict_tied">Above usual and above neighbours → ribbon</string>
+    <string name="weave_verdict_tied_neighbours">Above its neighbours → ribbon</string>
+    <string name="weave_verdict_few">Fewer than 3 cars → not judged</string>
+    <string name="weave_verdict_neighbours">Same as its neighbours → no ribbon</string>
+    <string name="weave_verdict_usual">As usual → no ribbon</string>
+    <string name="weave_verdict_small">Too small a difference → no ribbon</string>
+    <string name="weave_tied">The ribbon ties. %1$s: %2$s, %3$s.</string>
+    <string name="weave_tied_cold">On the height strip below, above the blue dashed line the air is expected at %1$s °C or colder.</string>
+    <string name="weave_none_few">No ribbon yet. A place is judged once %1$d different cars have passed.</string>
+    <string name="weave_none_neighbours">No ribbon ties. The same happened on the whole road, so it is no danger of this place.</string>
+    <string name="weave_none_usual">No ribbon ties. This place is usually like this.</string>
+    <string name="weave_none_small">No ribbon ties. The difference from usual and from its neighbours is small.</string>
+    <string name="weave_none_quiet">No ribbon ties. The cars that passed did nothing unusual.</string>
 </resources>

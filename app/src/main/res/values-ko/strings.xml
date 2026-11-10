@@ -3,7 +3,6 @@
 
     <string name="sim_data">시뮬레이션 데이터</string>
     <string name="demo">시연</string>
-    <string name="preview_run">미리 달리기</string>
     <string name="preview_stop">멈춤</string>
     <string name="tunnel_exit">%1$s 출구</string>
     <string name="speed_camera">단속카메라</string>
@@ -175,4 +174,39 @@
     <string name="demo_send_cars">가상 차 보내기</string>
     <string name="demo_bundled">시연 노선(APK)</string>
     <string name="demo_show_bundled">같은 길의 시연 노선 카드 보기 (내비 경로 아님)</string>
+
+    <!-- How ribbons tie: the replay that replaced the preview run's button -->
+    <string name="weave_run">리본이 묶이는 과정</string>
+    <string name="weave_close">닫기</string>
+    <string name="weave_desc">지나간 차들이 남긴 매듭을 다시 보여 줍니다. 차 한 대의 경로는 쓰지 않고, 구간마다 몇 대가 무엇을 했는지만 씁니다.</string>
+    <string name="weave_title">매듭이 리본이 되는 순간</string>
+    <string name="weave_key_usual">평소대로</string>
+    <string name="weave_threshold_mark">공개 기준 3대 ✓</string>
+    <string name="weave_cars">차 %1$d대가 이 길을 지나갔습니다.</string>
+    <string name="weave_cars_varied">곳마다 차 %1$d–%2$d대가 지나갔습니다.</string>
+    <string name="weave_knots">차는 지나간 곳마다 매듭을 하나씩 남깁니다.</string>
+    <string name="weave_colours">회색은 평소대로, 파란 매듭은 「%1$s」입니다.</string>
+    <string name="weave_threshold">✓ %1$s: 서로 다른 차 %2$d대가 지나갔습니다. %2$d대가 되어야 판정하고, 그보다 적은 기록은 공개하지 않습니다.</string>
+    <string name="weave_judge_title">판정 · %1$s</string>
+    <string name="weave_judge">이웃 구간보다도, 평소보다도 높아야 리본이 묶입니다.</string>
+    <string name="weave_judge_neighbours_only">평소값이 아직 없어 이웃 구간과 견줍니다.</string>
+    <string name="weave_this">이 구간</string>
+    <string name="weave_neighbours">이웃 구간</string>
+    <string name="weave_usual">평소</string>
+    <string name="weave_usual_almost_none">거의 없음</string>
+    <string name="weave_usual_about">약 %1$d/%2$d대</string>
+    <string name="weave_usual_unknown">평소값 없음</string>
+    <string name="weave_verdict_tied">평소보다도 이웃보다도 높다 → 리본</string>
+    <string name="weave_verdict_tied_neighbours">이웃보다 높다 → 리본</string>
+    <string name="weave_verdict_few">3대에 못 미친다 → 판정 안 함</string>
+    <string name="weave_verdict_neighbours">이웃과 같다 → 리본 없음</string>
+    <string name="weave_verdict_usual">평소와 같다 → 리본 없음</string>
+    <string name="weave_verdict_small">차이가 작다 → 리본 없음</string>
+    <string name="weave_tied">리본이 묶였습니다. %1$s: %2$s %3$s.</string>
+    <string name="weave_tied_cold">아래 높이 띠에서 파란 점선 위가 기온 %1$s°C 이하로 예상되는 높이입니다.</string>
+    <string name="weave_none_few">리본은 아직 묶이지 않습니다. 서로 다른 차 %1$d대가 지나가야 판정합니다.</string>
+    <string name="weave_none_neighbours">리본은 묶이지 않습니다. 길 전체에서 같은 일이 있었으니, 이곳만의 위험이 아닙니다.</string>
+    <string name="weave_none_usual">리본은 묶이지 않습니다. 이곳은 평소에도 이 정도입니다.</string>
+    <string name="weave_none_small">리본은 묶이지 않습니다. 평소나 이웃과 차이가 작습니다.</string>
+    <string name="weave_none_quiet">리본은 묶이지 않습니다. 지나간 차들은 평소와 다른 일을 하지 않았습니다.</string>
 </resources>
