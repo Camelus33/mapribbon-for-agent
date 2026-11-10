@@ -120,7 +120,7 @@ fun DemoPanel(vm: RibbonViewModel, s: ChannelState, t: Tokens, w: Words, onClose
                     if (presetOnScreen != null) {
                         Text(w.str(R.string.demo_live_scenarios), style = Type.caption, color = t.ink2)
                         val bundled = vm.data.route(presetOnScreen.bundledRouteId)
-                        for (sc in vm.data.scenarios.filter { it.routeId == presetOnScreen.bundledRouteId }) {
+                        for (sc in vm.data.shownScenarios.filter { it.routeId == presetOnScreen.bundledRouteId }) {
                             ScenarioCard(
                                 ch.scenarioTitle(sc.id), sc, bundled, selected = s.scenarioId == sc.id, enabled = !s.replaying, t, w,
                                 action = w.str(R.string.demo_send_cars),
@@ -130,7 +130,7 @@ fun DemoPanel(vm: RibbonViewModel, s: ChannelState, t: Tokens, w: Words, onClose
                 }
             }
             for (route in vm.data.routes) {
-                val scenarios = vm.data.scenarios.filter { it.routeId == route.id }
+                val scenarios = vm.data.shownScenarios.filter { it.routeId == route.id }
                 if (scenarios.isEmpty()) continue
                 // While the navigation's route from a preset is on screen, the same trip's bundled cards would show the
                 // same titles twice; they fold away behind one line, so a card is never tapped for the wrong route.

@@ -29,9 +29,22 @@ class DemoData(
 ) {
     fun route(id: String): RouteData = routes.firstOrNull { it.id == id } ?: routes.first()
 
+    /**
+     * The scenarios the demo panel offers, in the order they are shown. The others stay in the APK (the tests drive
+     * them, and `adb ... --es demo_scenario <id>` still runs them) but are not offered.
+     */
+    val shownScenarios: List<Scenario> get() = SHOWN.mapNotNull { id -> scenarios.firstOrNull { it.id == id } }
+
     companion object {
-        /** The expressway comes first: it is the route the app opens on. */
-        const val FIRST_ROUTE = "SY60E"
+        /** The demo is Jeju City to Jungmun: the app opens on 1100 Road. */
+        const val FIRST_ROUTE = "J1100S"
+
+        /**
+         * What the second-round demo shows, strongest first: the ice at the 1100 m summit, then the same signal on the
+         * whole road that the ribbons rightly leave alone, then hairpins and fog past Yeongsil, and Pyeonghwa-ro, the
+         * straight road between the same two places. The Gangwon scenarios tell the same stories and are not offered.
+         */
+        val SHOWN = listOf("jeju-1100-ice", "jeju-1100-sleet-everywhere", "jeju-1100-fog", "jeju-pyeonghwa")
 
         fun load(context: Context): DemoData {
             val a = context.assets
