@@ -163,8 +163,9 @@ private fun BriefingScreen(
                     Spacer(Modifier.width(12.dp))
                 }
             }
-            // Ribbons on a bundled route always come from simulated cars; on the navigation's route only when the server says so.
-            if (!onLive || live!!.simulated) {
+            // Ribbons on a bundled route always come from simulated cars, once there are any; on the navigation's route only
+            // when the server says so. With no knots there is nothing to label.
+            if (if (onLive) live!!.simulated else s.knotCount > 0) {
                 SimChip(t, w)
                 Spacer(Modifier.width(16.dp))
             }
@@ -176,7 +177,10 @@ private fun BriefingScreen(
         // the right, where the road runs from bottom-left (start) to top-right (destination). Text over the road makes
         // both unreadable, so the map has its own area and nothing is drawn over it but its own chips.
         Row(Modifier.weight(1f).fillMaxWidth()) {
-            val different = b.items.filter { it.different }.sortedWith(compareByDescending<BriefingItem> { it.state.deviation.ordinal }.thenBy { it.pointM })
+            // Places the cautions already name are not listed again; the fold holds only the rest.
+            val covered = cautions.flatMap { it.anchorIds }.toSet()
+            val different = b.items.filter { it.different && it.anchor.id !in covered }
+                .sortedWith(compareByDescending<BriefingItem> { it.state.deviation.ordinal }.thenBy { it.pointM })
             val bare = remember(b) { b.untied() }
             val shown = if (untied) bare else b
             val weaveLabels = remember(w) { WeaveLabels(w.str(R.string.weave_threshold_mark)) { k, n -> w.str(R.string.count_cars, k, n) } }
@@ -197,11 +201,11 @@ private fun BriefingScreen(
                 // The replay explains its own marks; the legend comes back when it is closed.
                 if (!weaving) {
                     Spacer(Modifier.height(24.dp))
-                    Legend(b, r.curves.map { it.curve }.toSet(), r.hairpins.isNotEmpty(), w, t)
+                    Legend(b, r.curves.map { it.curve }.toSet(), r.hairpins.isNotEmpty(), sayNotEnough = running, w, t)
                 }
                 if (!running && !weaving && different.isNotEmpty()) {
                     Spacer(Modifier.height(16.dp))
-                    AllPlaces(different, w, t)
+                    AllPlaces(different, if (cautions.isEmpty()) R.string.all_places else R.string.all_places_rest, w, t)
                 }
             }
             // The road's height sits under the map on the same kilometres, when the route has heights.
@@ -221,8 +225,10 @@ private fun BriefingScreen(
                 weaving -> w.str(R.string.weave_desc)
                 else -> null
             }
+            // Every source in one line: the map and route data, and the heights under the strip.
+            val sources = listOfNotNull(set.attribution, r.elevation?.let { "${it.file.source} ${it.file.attribution}" }).joinToString(" · ")
             Text(
-                note ?: set.attribution,
+                note ?: sources,
                 style = if (note != null) Type.caption else Type.legal, color = if (note != null) t.ink2 else t.muted,
                 modifier = Modifier.weight(1f),
             )
@@ -235,16 +241,15 @@ private fun BriefingScreen(
                 weaving -> OutlinedButton(onClick = { vm.stopWeave() }, modifier = Modifier.height(Touch), shape = RoundedCornerShape(12.dp)) {
                     Text(w.str(R.string.weave_close), style = Type.button, color = t.ink, modifier = Modifier.padding(horizontal = 8.dp))
                 }
-                else -> {
-                    // A replay needs cars: on a route nobody drove yet there is nothing to tie.
+                // A replay needs cars: on a route nobody drove yet there is nothing to tie, so no button.
+                plan.cars > 0 -> {
                     Button(
                         onClick = { vm.startWeave(plan) },
-                        enabled = plan.cars > 0,
                         modifier = Modifier.height(Touch),
                         shape = RoundedCornerShape(12.dp),
                         colors = ButtonDefaults.buttonColors(containerColor = t.actionBg, contentColor = t.actionInk),
                     ) {
-                        IconBox(24.dp) { c, sz -> playIcon(c, sz, if (plan.cars > 0) t.actionInk else t.muted) }
+                        IconBox(24.dp) { c, sz -> playIcon(c, sz, t.actionInk) }
                         Spacer(Modifier.width(12.dp))
                         Text(w.str(R.string.weave_run), style = Type.button, modifier = Modifier.padding(end = 8.dp))
                     }
@@ -531,7 +536,7 @@ private fun UsualTick(t: Tokens) = Canvas(Modifier.size(width = 6.dp, height = 2
  * different need no entry: everywhere they appear, their words stand next to them.
  */
 @Composable
-private fun Legend(b: Briefing, curves: Set<CurveClass>, hairpins: Boolean, w: Words, t: Tokens) {
+private fun Legend(b: Briefing, curves: Set<CurveClass>, hairpins: Boolean, sayNotEnough: Boolean, w: Words, t: Tokens) {
     val road = buildList {
         add(LegendKind.STRAIGHT to w.str(R.string.legend_straight))
         if (CurveClass.CURVE in curves) add(LegendKind.CURVE to w.str(R.string.legend_curve))
@@ -544,7 +549,8 @@ private fun Legend(b: Briefing, curves: Set<CurveClass>, hairpins: Boolean, w: W
         if (b.items.any { it.different && it.state.deviation == Deviation.SOME }) add(LegendKind.SOME to w.str(R.string.legend_some))
         // The usual tick is drawn for facilities only; a usual segment leaves the road as it is.
         if (b.items.any { it.state.status == RibbonStatus.PUBLISHED && !it.different && it.anchor.type != AnchorType.SEGMENT }) add(LegendKind.USUAL to w.str(R.string.legend_usual))
-        if (b.notEnoughCount > 0) add(LegendKind.NOT_ENOUGH to w.str(R.string.legend_not_enough))
+        // Above the legend the verdict or the "not judged" line already shows the hollow mark with its words.
+        if (b.notEnoughCount > 0 && sayNotEnough) add(LegendKind.NOT_ENOUGH to w.str(R.string.legend_not_enough))
     }
     Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
         LegendRow(t) { for ((k, label) in road) LegendEntry(label, t) { LegendSwatch(k, t) } }
@@ -605,16 +611,16 @@ private fun PlaceList(rows: List<BriefingItem>, w: Words, t: Tokens) {
     }
 }
 
-/** Every different place, folded behind one line: the cautions above already say the ones that matter most. */
+/** The different places the cautions do not name, folded behind one line. */
 @Composable
-private fun AllPlaces(rows: List<BriefingItem>, w: Words, t: Tokens) {
+private fun AllPlaces(rows: List<BriefingItem>, label: Int, w: Words, t: Tokens) {
     var open by rememberSaveable { mutableStateOf(false) }
     Column {
         Row(
             Modifier.fillMaxWidth().heightIn(min = 56.dp).clip(RoundedCornerShape(12.dp)).clickable { open = !open },
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            Text(w.str(R.string.all_places, rows.size), style = Type.caption, color = t.ink2, modifier = Modifier.weight(1f))
+            Text(w.str(label, rows.size), style = Type.caption, color = t.ink2, modifier = Modifier.weight(1f))
             IconBox(24.dp) { c, sz -> chevronIcon(c, sz, t.ink2, up = open) }
         }
         if (open) PlaceList(rows, w, t)

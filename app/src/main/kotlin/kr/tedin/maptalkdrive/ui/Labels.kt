@@ -69,9 +69,10 @@ class Words(private val r: Resources) {
 
     /** Whether the line on screen is the navigation's route, judged by its length, with both lengths when they differ. */
     fun match(m: RouteMatch): String = when (m.verdict) {
-        MatchVerdict.SAME -> r.getString(R.string.match_same, at(m.lengthM))
+        // The title already gives the length; only a difference needs both.
+        MatchVerdict.SAME -> r.getString(R.string.match_same)
         MatchVerdict.DIFFERENT -> r.getString(R.string.match_different, at(m.lengthM), at(m.naviDistanceM ?: 0))
-        MatchVerdict.UNKNOWN -> r.getString(R.string.match_unknown, at(m.lengthM))
+        MatchVerdict.UNKNOWN -> r.getString(R.string.match_unknown)
     }
 
     /** What was different, for the legend and for accessibility; on the map and cards it is an icon. */

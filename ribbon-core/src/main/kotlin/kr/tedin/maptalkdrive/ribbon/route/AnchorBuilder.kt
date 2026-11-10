@@ -38,7 +38,7 @@ data class BuildCfg(
  * neighbours along the whole route.
  */
 object AnchorBuilder {
-    const val ATTRIBUTION = "© OpenStreetMap contributors (ODbL 1.0, https://www.openstreetmap.org/copyright) · route: GraphHopper"
+    const val ATTRIBUTION = "© OpenStreetMap contributors (ODbL 1.0, https://www.openstreetmap.org/copyright) · GraphHopper"
     private val REST_AREA = Regex("휴게소|쉼터")
 
     fun build(

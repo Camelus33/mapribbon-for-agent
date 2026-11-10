@@ -71,6 +71,7 @@
 
     <!-- Where to take care: the title of the list and what a careful driver does there -->
     <string name="caution_title">Take care here</string>
+    <string name="all_places_rest">Other unusual places: %1$d</string>
     <string name="all_places">All %1$d unusual places</string>
     <string name="action_slow">Slow down early</string>
     <string name="action_distance">Keep your distance</string>
@@ -156,7 +157,6 @@
     <string name="navi_cancelled">Route cancelled</string>
     <string name="elev_descent">%1$s down · avg %2$d%%</string>
     <string name="elev_cold">%1$s °C or colder expected above %2$s m</string>
-    <string name="elev_cold_basis">Temperature line from %2$s °C reported at %1$s, cooling %3$s °C per km of height</string>
     <string name="elev_note">Height ×%1$d exaggerated</string>
     <!-- The navigation's route, drawn by the ribbon server -->
     <string name="live_loading">Drawing the navigation\'s route…</string>
@@ -168,9 +168,9 @@
     <string name="live_retry">Try again</string>
     <string name="live_source_test">Test input</string>
     <string name="live_source_navi">Navigation</string>
-    <string name="match_same">Same as navigation · %1$s</string>
+    <string name="match_same">Same as navigation</string>
     <string name="match_different">May differ from navigation · map %1$s · navigation %2$s</string>
-    <string name="match_unknown">No navigation distance · %1$s</string>
+    <string name="match_unknown">No navigation distance</string>
     <string name="ribbons_stale">Ribbons from %1$d min ago</string>
     <string name="log_live_route">Navigation route to %1$s: asking the ribbon server</string>
     <string name="log_upload">Sent %1$d knots to the ribbon server</string>

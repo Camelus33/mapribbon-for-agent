@@ -188,20 +188,18 @@ fun ElevationStrip(
                 drawCircle(t.position, 9.dp.toPx(), c)
             }
         }
+        // How the cold line is estimated is in the README; its label already says the result. The source of the heights
+        // is in the screen's one line of sources.
         Text(
-            listOfNotNull(
-                w.str(R.string.elev_note, p.exaggeration),
-                ref?.let { w.str(R.string.elev_cold_basis, Words.at(it.alongM), "%.0f".format(it.tempC), "%.1f".format(ElevationProfile.LAPSE_C_PER_KM)) },
-                "${profile.file.source} ${profile.file.attribution}",
-            ).joinToString(" · "),
-            style = Type.legal, color = t.muted, maxLines = 2, overflow = TextOverflow.Ellipsis,
+            w.str(R.string.elev_note, p.exaggeration),
+            style = Type.legal, color = t.muted, maxLines = 1, overflow = TextOverflow.Ellipsis,
             modifier = Modifier.fillMaxWidth().height(NoteHeight).padding(top = 4.dp),
         )
         }
     }
 }
 
-private val NoteHeight = 52.dp
+private val NoteHeight = 28.dp
 
 /** Distance along the route to x, height to y. */
 private class Plot(val left: Float, val right: Float, val top: Float, val bottom: Float, val lengthM: Double, val lo: Double, val hi: Double) {

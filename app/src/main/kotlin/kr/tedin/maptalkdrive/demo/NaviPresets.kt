@@ -11,7 +11,11 @@ import kr.tedin.maptalkdrive.ribbon.spec.RouteSource
  * bundled Jeju routes, so the bundled scenarios can be sent down them. Each starts where its bundled route starts,
  * heading the same way, and gives the bundled length as the navigation's.
  */
-data class NaviPreset(val id: String, val label: Int, val bundledRouteId: String, val route: NaviRoute)
+data class NaviPreset(
+    val id: String, val label: Int, val bundledRouteId: String, val route: NaviRoute,
+    /** Where the trip starts, by name: a test input has no name of its own, but the preset knows its place. */
+    val originName: String, val originNameEn: String,
+)
 
 object NaviPresets {
     private val NOHYEONG_1100 = LatLon(33.484742, 126.480066)
@@ -28,6 +32,7 @@ object NaviPresets {
                 destination = JUNGMUN, destinationName = "중문", option = RouteOption.RECOMMENDED, naviDistanceM = 34_243,
                 source = RouteSource.TEST,
             ),
+            originName = "노형", originNameEn = "Nohyeong",
         ),
         NaviPreset(
             "jeju-pyeonghwa", R.string.preset_pyeonghwa, "J1135S",
@@ -36,6 +41,7 @@ object NaviPresets {
                 destination = JUNGMUN, destinationName = "중문", option = RouteOption.RECOMMENDED, naviDistanceM = 39_162,
                 source = RouteSource.TEST,
             ),
+            originName = "노형", originNameEn = "Nohyeong",
         ),
     )
 

@@ -348,7 +348,13 @@ class RibbonChannel private constructor(context: Context) {
     /** The server's anchors under a name the screen reads as "<origin> → <destination>". */
     private fun routeDataOf(route: NaviRoute, res: RouteResponse): RouteData {
         val dest = route.destinationName?.replace("→", " ")?.trim()?.takeIf { it.isNotEmpty() }
-        val (fromKo, fromEn) = if (route.originIsCurrent) "현재 위치" to "Current location" else "시험 출발지" to "Test start"
+        // A preset names its start; any other test input has only a position, so it says it is one.
+        val preset = NaviPresets.of(route)
+        val (fromKo, fromEn) = when {
+            route.originIsCurrent -> "현재 위치" to "Current location"
+            preset != null -> preset.originName to preset.originNameEn
+            else -> "시험 출발지" to "Test start"
+        }
         val set = res.anchorSet.copy(
             routeName = "내비 경로: $fromKo → ${dest ?: "목적지"}",
             routeNameEn = "Navigation route: $fromEn → ${dest ?: "Destination"}",
