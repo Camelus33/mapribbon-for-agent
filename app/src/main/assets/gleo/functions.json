@@ -15,7 +15,7 @@
               "SY60E",
               "N44E"
             ],
-            "description": "Route id. Omit for the route on screen. SY60E: Seoul-Yangyang Expressway Inje IC to Yangyang JC. N44E: National Route 44 over Hangyeryeong Pass, Inje to Yangyang."
+            "description": "Route id. Omit for the route on screen, which is the car navigation's own route once one is set (drawn by the ribbon server, id starting with L). SY60E: Seoul-Yangyang Expressway Inje IC to Yangyang JC. N44E: National Route 44 over Hangyeryeong Pass, Inje to Yangyang."
           }
         },
         "additionalProperties": false
@@ -39,7 +39,7 @@
               "SY60E",
               "N44E"
             ],
-            "description": "Route id. Omit for the route on screen. SY60E: Seoul-Yangyang Expressway Inje IC to Yangyang JC. N44E: National Route 44 over Hangyeryeong Pass, Inje to Yangyang."
+            "description": "Route id. Omit for the route on screen, which is the car navigation's own route once one is set (drawn by the ribbon server, id starting with L). SY60E: Seoul-Yangyang Expressway Inje IC to Yangyang JC. N44E: National Route 44 over Hangyeryeong Pass, Inje to Yangyang."
           }
         },
         "required": [
@@ -61,7 +61,7 @@
               "SY60E",
               "N44E"
             ],
-            "description": "Route id. Omit for the route on screen. SY60E: Seoul-Yangyang Expressway Inje IC to Yangyang JC. N44E: National Route 44 over Hangyeryeong Pass, Inje to Yangyang."
+            "description": "Route id. Omit for the route on screen, which is the car navigation's own route once one is set (drawn by the ribbon server, id starting with L). SY60E: Seoul-Yangyang Expressway Inje IC to Yangyang JC. N44E: National Route 44 over Hangyeryeong Pass, Inje to Yangyang."
           }
         },
         "additionalProperties": false
@@ -80,7 +80,7 @@
               "SY60E",
               "N44E"
             ],
-            "description": "Route id. Omit for the route on screen. SY60E: Seoul-Yangyang Expressway Inje IC to Yangyang JC. N44E: National Route 44 over Hangyeryeong Pass, Inje to Yangyang."
+            "description": "Route id. Omit for the route on screen, which is the car navigation's own route once one is set (drawn by the ribbon server, id starting with L). SY60E: Seoul-Yangyang Expressway Inje IC to Yangyang JC. N44E: National Route 44 over Hangyeryeong Pass, Inje to Yangyang."
           }
         },
         "additionalProperties": false

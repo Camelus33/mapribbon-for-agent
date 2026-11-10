@@ -25,7 +25,8 @@ import kr.tedin.maptalkdrive.ribbon.spec.RouteBrief
  * - `content://kr.tedin.maptalkdrive.ribbons/route`                how the route bends (with its hairpins), and its facilities
  * - `content://kr.tedin.maptalkdrive.ribbons/caution`              where to take care, at most three, ranked (`maptalk.caution/1`)
  *
- * Each answers for the route on screen; add `?route=<routeId>` (SY60E, N44E, J1100S, J1135S) for another.
+ * Each answers for the route on screen, which is the navigation's route once one is set; add `?route=<routeId>`
+ * (SY60E, N44E, J1100S, J1135S, or the navigation's route id, an "L…" id from the ribbon server) for another.
  *
  * Ribbons are aggregates of at least three cars with no identities in them, so the provider needs no permission.
  */
@@ -42,8 +43,9 @@ class RibbonProvider : ContentProvider() {
 
     override fun query(uri: Uri, projection: Array<out String>?, selection: String?, selectionArgs: Array<out String>?, sortOrder: String?): Cursor {
         val channel = RibbonChannel.get(context!!)
-        // The route on screen by default; `?route=N44E` reads another one.
-        val r = uri.getQueryParameter("route")?.takeIf { it.isNotBlank() }?.let { id -> channel.data.routes.firstOrNull { it.id == id } ?: throw IllegalArgumentException("unknown route $id") }
+        // The route on screen by default; `?route=N44E` (or the navigation's route id) reads another one.
+        val r = uri.getQueryParameter("route")?.takeIf { it.isNotBlank() }
+            ?.let { id -> if (channel.knows(id)) channel.routeData(id) else throw IllegalArgumentException("unknown route $id") }
             ?: channel.current
         val anchors = r.anchorSet.anchors
         val ribbons = channel.ribbons(r.id)

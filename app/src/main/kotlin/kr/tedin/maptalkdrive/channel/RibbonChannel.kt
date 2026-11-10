@@ -2,6 +2,7 @@ package kr.tedin.maptalkdrive.channel
 
 import android.content.Context
 import android.util.Base64
+import android.util.Log
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -10,14 +11,18 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.update
+import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import kr.tedin.maptalkdrive.BuildConfig
 import kr.tedin.maptalkdrive.R
 import kr.tedin.maptalkdrive.adapter.PleosLocationAdapter
 import kr.tedin.maptalkdrive.adapter.PleosNaviAdapter
 import kr.tedin.maptalkdrive.adapter.PleosVehicleAdapter
 import kr.tedin.maptalkdrive.demo.DemoData
 import kr.tedin.maptalkdrive.demo.RouteData
+import kr.tedin.maptalkdrive.net.KnotUploader
+import kr.tedin.maptalkdrive.net.RibbonClient
 import kr.tedin.maptalkdrive.port.NaviEvent
 import kr.tedin.maptalkdrive.ribbon.agg.Baseline
 import kr.tedin.maptalkdrive.ribbon.agg.RibbonEngine
@@ -26,11 +31,41 @@ import kr.tedin.maptalkdrive.ribbon.demo.ScenarioDrive
 import kr.tedin.maptalkdrive.ribbon.detect.PassDetector
 import kr.tedin.maptalkdrive.ribbon.detect.Sample
 import kr.tedin.maptalkdrive.ribbon.geo.LngLat
+import kr.tedin.maptalkdrive.ribbon.geo.RouteIndex
+import kr.tedin.maptalkdrive.ribbon.live.NaviRoute
 import kr.tedin.maptalkdrive.ribbon.pseudo.Pseudonym
 import kr.tedin.maptalkdrive.ribbon.spec.Knot
+import kr.tedin.maptalkdrive.ribbon.spec.LatLon
 import kr.tedin.maptalkdrive.ribbon.spec.RibbonState
+import kr.tedin.maptalkdrive.ribbon.spec.RouteMatch
+import kr.tedin.maptalkdrive.ribbon.spec.RouteRequest
+import kr.tedin.maptalkdrive.ribbon.spec.RouteResponse
+import kr.tedin.maptalkdrive.ribbon.spec.RouteSource
 import java.security.SecureRandom
 import java.time.LocalDate
+
+/** Where the navigation's route stands: being drawn by the server, on screen, or not to be had. */
+enum class LivePhase { LOADING, READY, FAILED }
+
+/** Why the navigation's route could not be shown. */
+enum class LiveError { UNREACHABLE, SERVER_LOADING, NO_ROUTE, NO_POSITION, OTHER }
+
+/** The navigation's route as the screen needs to know it. */
+data class LiveView(
+    val phase: LivePhase,
+    val source: RouteSource,
+    /** The origin is where the car is (from the navigation or the car), not a typed test point. */
+    val originIsCurrent: Boolean,
+    val destinationName: String?,
+    val routeId: String? = null,
+    val match: RouteMatch? = null,
+    /** Some knots behind the ribbons came from the verification simulator. */
+    val simulated: Boolean = false,
+    val ribbonsAtMs: Long? = null,
+    val error: LiveError? = null,
+    /** The ribbons could not be refreshed last time (the route itself is still on screen). */
+    val stale: Boolean = false,
+)
 
 data class ChannelState(
     /** The route on screen and the one this car records on. */
@@ -49,12 +84,17 @@ data class ChannelState(
     /** The last knot any agent wrote, as it went into the channel. */
     val lastKnot: Knot? = null,
     val naviNotice: String? = null,
+    /** The navigation's route, drawn by the ribbon server, when one is set. */
+    val live: LiveView? = null,
 )
 
 /**
  * The ribbon channel of this device, one per process: the activity, the recording service and the content provider
- * other agents read through all see the same knots. Knots from simulated cars and from this car go into one list; the
- * shared ribbon-core engine turns them into ribbons exactly as a server would. Nothing leaves the device in this build.
+ * other agents read through all see the same state.
+ *
+ * Two kinds of route are on offer. The bundled demo routes keep their ribbons here, from simulated cars run through the
+ * shared ribbon-core engine. The navigation's route (the live route) is drawn by the ribbon server from the points the
+ * navigation gives; its ribbons come from the server, and this car's knots on it go to the server.
  */
 class RibbonChannel private constructor(context: Context) {
     private val ctx = context.applicationContext
@@ -62,6 +102,7 @@ class RibbonChannel private constructor(context: Context) {
     val vehicle = PleosVehicleAdapter(ctx)
     val location = PleosLocationAdapter(ctx)
     val navi = PleosNaviAdapter(ctx)
+    private val client = RibbonClient(BuildConfig.RIBBON_SERVER_URL)
 
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
     private val engines = data.routes.associate { it.id to RibbonEngine(it.anchorSet.anchors, data.baseline) }
@@ -69,28 +110,46 @@ class RibbonChannel private constructor(context: Context) {
     private val secret = deviceSecret(ctx)
     private var replayJob: Job? = null
     @Volatile private var recorder: PassDetector? = null
+    @Volatile private var recordingOn: String? = null
     private var portsStarted = false
+    @Volatile private var lastFix: LatLon? = null
+
+    /** The navigation's route as the server drew it, and the newest ribbons on it. */
+    private class LiveRoute(
+        val route: NaviRoute,
+        val request: RouteRequest,
+        val response: RouteResponse,
+        val data: RouteData,
+        @Volatile var ribbons: List<RibbonState>? = null,
+    )
+    @Volatile private var live: LiveRoute? = null
+    private var liveJob: Job? = null
+    private var lastRouteAsked: NaviRoute? = null
+    private val uploader = KnotUploader(client, scope, onSent = { n ->
+        log(ctx.getString(R.string.log_upload, n))
+        refreshLiveNow()
+    })
 
     private val _state = MutableStateFlow(data.routes.first().id.let { ChannelState(routeId = it, briefing = briefingFor(it)) })
     val state: StateFlow<ChannelState> = _state
 
     /** The route on screen. */
-    val current: RouteData get() = data.route(_state.value.routeId)
+    val current: RouteData get() = routeData(_state.value.routeId)
 
     init {
         scope.launch {
             navi.events.collect { e ->
-                val notice = when (e) {
-                    is NaviEvent.RouteStarted -> ctx.getString(R.string.navi_route, e.name ?: ctx.getString(R.string.navi_destination), e.distanceM / 1000.0)
-                    NaviEvent.Arrived -> ctx.getString(R.string.navi_arrived)
-                    NaviEvent.Cancelled -> ctx.getString(R.string.navi_cancelled)
+                when (e) {
+                    is NaviEvent.RouteSet -> onRouteSet(e.route)
+                    is NaviEvent.RouteStarted -> note(ctx.getString(R.string.navi_route, e.name ?: ctx.getString(R.string.navi_destination), e.distanceM / 1000.0))
+                    NaviEvent.Arrived -> note(ctx.getString(R.string.navi_arrived))
+                    NaviEvent.Cancelled -> { note(ctx.getString(R.string.navi_cancelled)); clearLive() }
                 }
-                _state.update { it.copy(naviNotice = notice) }
-                log(notice)
             }
         }
         scope.launch {
             location.fixes.collect { fix ->
+                lastFix = LatLon(fix.lat, fix.lon)
                 val d = recorder ?: return@collect
                 val sig = vehicle.signals.value
                 val sample = Sample(
@@ -98,7 +157,10 @@ class RibbonChannel private constructor(context: Context) {
                     wiperLevel = sig.wiperLevel, lowBeam = sig.lowBeam, rearFog = sig.rearFog, outsideTempC = sig.outsideTempC,
                 )
                 val tied = d.accept(sample)
-                if (tied.isNotEmpty()) _state.update { it.copy(myKnots = it.myKnots + tied.size) }
+                if (tied.isEmpty()) return@collect
+                _state.update { it.copy(myKnots = it.myKnots + tied.size) }
+                // Knots on the navigation's route belong on the server, where other cars' knots on the same road are.
+                if (recordingOn != null && recordingOn == live?.response?.routeId) uploader.add(tied)
                 addKnots(tied, ctx.getString(R.string.log_this_car))
             }
         }
@@ -109,6 +171,124 @@ class RibbonChannel private constructor(context: Context) {
         portsStarted = true
         vehicle.start(); location.start(); navi.start()
     }
+
+    /** The bundled route or the navigation's route with this id; an unknown id falls back to the first bundled route. */
+    fun routeData(id: String): RouteData = live?.takeIf { it.data.id == id }?.data ?: data.route(id)
+
+    /** Whether a route id names a route the channel can answer for. */
+    fun knows(id: String): Boolean = live?.data?.id == id || data.routes.any { it.id == id }
+
+    // ---------------------------------------------------------------- the navigation's route
+
+    /** The navigation set a route (or a test route was typed in): have the server draw it, then show its ribbons. */
+    fun onRouteSet(route: NaviRoute) {
+        lastRouteAsked = route
+        val l = live
+        if (l != null && l.route.samePlaces(route) && l.route.naviDistanceM == route.naviDistanceM && _state.value.live?.phase == LivePhase.READY) {
+            selectRoute(l.data.id)
+            refreshLiveNow()
+            return
+        }
+        val req = route.request(lastFix)
+        if (req == null) {
+            _state.update { it.copy(live = LiveView(LivePhase.FAILED, route.source, route.originIsCurrent, route.destinationName, error = LiveError.NO_POSITION)) }
+            return
+        }
+        liveJob?.cancel()
+        _state.update { it.copy(live = LiveView(LivePhase.LOADING, route.source, route.originIsCurrent, route.destinationName)) }
+        log(ctx.getString(R.string.log_live_route, route.destinationName ?: ctx.getString(R.string.navi_destination)))
+        liveJob = scope.launch {
+            val res = try {
+                client.route(req)
+            } catch (e: RibbonClient.Failure) {
+                Log.w(TAG, "route request failed: ${e.message}")
+                _state.update { it.copy(live = LiveView(LivePhase.FAILED, route.source, route.originIsCurrent, route.destinationName, error = errorOf(e))) }
+                return@launch
+            }
+            val rd = withContext(Dispatchers.Default) { routeDataOf(route, res) }
+            live = LiveRoute(route, req, res, rd)
+            val wasRecording = recorder != null
+            _state.update {
+                it.copy(
+                    routeId = rd.id, scenarioId = null, briefing = briefingFor(rd.id),
+                    live = LiveView(LivePhase.READY, route.source, route.originIsCurrent, route.destinationName, rd.id, res.match),
+                )
+            }
+            if (wasRecording) restartRecorder()
+            while (isActive) {
+                fetchRibbons()
+                delay(REFRESH_MS)
+            }
+        }
+    }
+
+    /** Asks for the last route again after a failure. */
+    fun retryLive() {
+        val r = lastRouteAsked ?: return
+        live = null
+        onRouteSet(r)
+    }
+
+    private fun refreshLiveNow() {
+        if (live == null) return
+        scope.launch { fetchRibbons() }
+    }
+
+    private suspend fun fetchRibbons() {
+        val l = live ?: return
+        try {
+            val r = try {
+                client.ribbons(l.response.routeId)
+            } catch (e: RibbonClient.Failure.NotFound) {
+                // The server restarted and forgot the route: the same request gives the same route id back.
+                client.route(l.request)
+                client.ribbons(l.response.routeId)
+            }
+            if (live !== l) return
+            l.ribbons = r.ribbons
+            _state.update { s ->
+                s.copy(
+                    briefing = if (s.routeId == l.data.id) briefingFor(l.data.id) else s.briefing,
+                    live = s.live?.copy(simulated = r.simulated, ribbonsAtMs = System.currentTimeMillis(), stale = false),
+                )
+            }
+        } catch (e: RibbonClient.Failure) {
+            Log.i(TAG, "ribbons not refreshed: ${e.message}")
+            _state.update { s -> s.copy(live = s.live?.copy(stale = true)) }
+        }
+    }
+
+    private fun clearLive() {
+        liveJob?.cancel()
+        val was = live ?: return run { _state.update { it.copy(live = null) } }
+        val onScreen = _state.value.routeId == was.data.id
+        if (onScreen) stopRecording()
+        live = null
+        val first = data.routes.first().id
+        _state.update { s ->
+            if (s.routeId == was.data.id) s.copy(live = null, routeId = first, briefing = briefingFor(first)) else s.copy(live = null)
+        }
+    }
+
+    /** The server's anchors under a name the screen reads as "<origin> → <destination>". */
+    private fun routeDataOf(route: NaviRoute, res: RouteResponse): RouteData {
+        val dest = route.destinationName?.replace("→", " ")?.trim()?.takeIf { it.isNotEmpty() }
+        val (fromKo, fromEn) = if (route.originIsCurrent) "현재 위치" to "Current location" else "시험 출발지" to "Test start"
+        val set = res.anchorSet.copy(
+            routeName = "내비 경로: $fromKo → ${dest ?: "목적지"}",
+            routeNameEn = "Navigation route: $fromEn → ${dest ?: "Destination"}",
+        )
+        return RouteData(set, RouteIndex(res.route.geometry.coordinates.map { LngLat(it[0], it[1]) }))
+    }
+
+    private fun errorOf(e: RibbonClient.Failure): LiveError = when (e) {
+        is RibbonClient.Failure.Unreachable -> LiveError.UNREACHABLE
+        is RibbonClient.Failure.Loading -> LiveError.SERVER_LOADING
+        is RibbonClient.Failure.NoRoute -> LiveError.NO_ROUTE
+        else -> LiveError.OTHER
+    }
+
+    // ---------------------------------------------------------------- the bundled demo routes
 
     /** Lets the simulated cars of one scenario drive the route one after another, so the ribbons fill up on screen. */
     fun runScenario(id: String) {
@@ -135,9 +315,9 @@ class RibbonChannel private constructor(context: Context) {
         }
     }
 
-    /** Shows another route. Its ribbons are whatever the channel holds for its anchors (nothing after a fresh start). */
+    /** Shows another route: a bundled one, or the navigation's route by its id. */
     fun selectRoute(id: String) {
-        val r = data.route(id)
+        val r = routeData(id)
         if (r.id == _state.value.routeId) return
         stopRecording()
         _state.update { it.copy(routeId = r.id, scenarioId = null, briefing = briefingFor(r.id)) }
@@ -149,27 +329,44 @@ class RibbonChannel private constructor(context: Context) {
         _state.update { it.copy(scenarioId = null, replaying = false, replayDone = 0, replayTotal = 0, knotCount = 0, lastKnot = null, log = emptyList(), briefing = briefingNow()) }
     }
 
+    // ---------------------------------------------------------------- this car
+
     /** This car's agent starts tying knots from the car's own position and signals. */
     fun startRecording() {
         if (recorder != null) return
-        recorder = PassDetector(current.route, current.anchorSet.anchors, pseudonym = Pseudonym.forDay(secret, LocalDate.now(Baseline.SEOUL)))
+        restartRecorder()
         _state.update { it.copy(recording = true, myKnots = 0) }
         log(ctx.getString(R.string.log_live_start, location.status.value.source))
         RecordService.start(ctx)
     }
 
+    /** A detector on the route on screen (again, when the navigation's route changed under a recording). */
+    private fun restartRecorder() {
+        val r = current
+        recordingOn = r.id
+        recorder = PassDetector(r.route, r.anchorSet.anchors, pseudonym = Pseudonym.forDay(secret, LocalDate.now(Baseline.SEOUL)))
+    }
+
     fun stopRecording() {
         if (recorder == null) return
         recorder = null
+        recordingOn = null
         _state.update { it.copy(recording = false) }
         log(ctx.getString(R.string.log_live_stop))
         RecordService.stop(ctx)
+        scope.launch { uploader.flush() }
     }
 
     fun dismissNotice() = _state.update { it.copy(naviNotice = null) }
 
-    /** The ribbons of one route as of now, for the screen and for agents that read the channel. */
+    /**
+     * The ribbons of one route as of now, for the screen and for agents that read the channel. On the navigation's
+     * route they are the server's; before the first answer every anchor reads "not enough cars yet".
+     */
     fun ribbons(routeId: String = _state.value.routeId, nowMs: Long = System.currentTimeMillis()): List<RibbonState> {
+        live?.takeIf { it.data.id == routeId }?.let { l ->
+            return l.ribbons ?: RibbonEngine(l.data.anchorSet.anchors).states(emptyList(), nowMs)
+        }
         val snapshot = synchronized(knots) { knots.toList() }
         return engines.getValue(data.route(routeId).id).states(snapshot, nowMs)
     }
@@ -188,11 +385,19 @@ class RibbonChannel private constructor(context: Context) {
 
     private fun briefingNow(): Briefing = briefingFor(_state.value.routeId)
 
-    private fun briefingFor(routeId: String): Briefing = Briefing.build(data.route(routeId).anchorSet.anchors, ribbons(routeId))
+    private fun briefingFor(routeId: String): Briefing = Briefing.build(routeData(routeId).anchorSet.anchors, ribbons(routeId))
+
+    private fun note(text: String) {
+        _state.update { it.copy(naviNotice = text) }
+        log(text)
+    }
 
     private fun log(line: String) = _state.update { it.copy(log = (listOf(line) + it.log).take(40)) }
 
     companion object {
+        private const val TAG = "RibbonChannel"
+        private const val REFRESH_MS = 60_000L
+
         @Volatile private var instance: RibbonChannel? = null
 
         fun get(context: Context): RibbonChannel =

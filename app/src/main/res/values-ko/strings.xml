@@ -140,7 +140,7 @@
     <string name="log_knots">%1$s · 매듭 %2$d</string>
     <string name="log_live_start">실차 신호로 기록 시작 (위치: %1$s)</string>
     <string name="log_live_stop">기록 멈춤</string>
-    <string name="navi_route">내비 경로 시작 · %1$s %2$.1f km · 시연 구간을 보여 줍니다</string>
+    <string name="navi_route">내비 경로 시작 · %1$s %2$.1f km</string>
     <string name="navi_destination">목적지</string>
     <string name="navi_arrived">목적지 도착</string>
     <string name="navi_cancelled">경로 취소</string>
@@ -148,4 +148,21 @@
     <string name="elev_cold">해발 %2$s m 위 %1$s°C 이하 예상</string>
     <string name="elev_cold_basis">기온선은 %1$s 지점 %2$s°C에서 1 km 오를 때마다 %3$s°C씩 내려 추정</string>
     <string name="elev_note">세로 %1$d배 과장</string>
+    <!-- 리본 서버가 그린 내비 경로 -->
+    <string name="live_loading">내비 경로를 그리는 중…</string>
+    <string name="live_failed_unreachable">리본 서버에 연결하지 못했습니다</string>
+    <string name="live_failed_loading">리본 서버가 아직 지도를 불러오는 중입니다</string>
+    <string name="live_failed_no_route">이 지점들 사이의 길을 찾지 못했습니다</string>
+    <string name="live_failed_no_position">차의 현재 위치를 아직 모릅니다</string>
+    <string name="live_failed_other">내비 경로를 받지 못했습니다</string>
+    <string name="live_retry">다시 시도</string>
+    <string name="live_source_test">시험 입력</string>
+    <string name="live_source_navi">내비</string>
+    <string name="match_same">내비와 같은 경로 · %1$s</string>
+    <string name="match_different">내비와 다를 수 있음 · 지도 %1$s · 내비 %2$s</string>
+    <string name="match_unknown">내비 거리 없음 · %1$s</string>
+    <string name="ribbons_stale">리본 %1$d분 전 값</string>
+    <string name="demo_live_route">내비 경로</string>
+    <string name="log_live_route">%1$s 가는 내비 경로를 리본 서버에 묻는 중</string>
+    <string name="log_upload">리본 서버로 매듭 %1$d개를 보냈습니다</string>
 </resources>

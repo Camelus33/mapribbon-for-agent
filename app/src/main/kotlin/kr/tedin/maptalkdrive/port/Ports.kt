@@ -1,5 +1,6 @@
 package kr.tedin.maptalkdrive.port
 
+import kr.tedin.maptalkdrive.ribbon.live.NaviRoute
 import kr.tedin.maptalkdrive.ribbon.spec.WiperLevel
 import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -45,6 +46,8 @@ interface LocationPort {
 
 sealed interface NaviEvent {
     data class RouteStarted(val name: String?, val distanceM: Int) : NaviEvent
+    /** Where the navigation is going: its points, length and route option (it never gives the line itself). */
+    data class RouteSet(val route: NaviRoute) : NaviEvent
     data object Arrived : NaviEvent
     data object Cancelled : NaviEvent
 }
@@ -54,4 +57,6 @@ interface NaviPort {
     val status: StateFlow<PortStatus>
     fun start()
     fun stop()
+    /** A route typed in for testing; it goes down the same path as one from the navigation, marked as a test. */
+    fun inject(route: NaviRoute)
 }

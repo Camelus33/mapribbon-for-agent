@@ -98,6 +98,15 @@ fun DemoPanel(vm: RibbonViewModel, s: ChannelState, t: Tokens, w: Words, onClose
                 Text(w.str(R.string.demo), style = Type.title, color = t.ink, modifier = Modifier.weight(1f))
                 IconTap(w.str(R.string.close), onClose) { c, sz -> closeIcon(c, sz, t.ink) }
             }
+            // The navigation's route, when one is set: back to it from a demo route.
+            s.live?.routeId?.let { id ->
+                val lr = ch.routeData(id)
+                val (from, to) = w.ends(lr.anchorSet)
+                Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                    Text(w.str(R.string.demo_live_route), style = Type.caption, color = t.muted)
+                    PanelButton("$from → $to · ${Words.at(lr.anchorSet.lengthM)}", t, enabled = s.routeId != id, onClick = { ch.selectRoute(id); onClose() }) { c, sz -> playIcon(c, sz, t.ink) }
+                }
+            }
             for (route in vm.data.routes) {
                 val scenarios = vm.data.scenarios.filter { it.routeId == route.id }
                 if (scenarios.isEmpty()) continue

@@ -26,3 +26,6 @@ node_modules/
 
 # Local demo recordings and release builds (published through GitHub releases, not the repo)
 out/
+
+# Ribbon server data: the OSM extract and the graph built from it (downloaded, never committed)
+ribbon-server/data/

@@ -24,6 +24,10 @@ android {
         targetSdk = 35
         versionCode = 1
         versionName = "0.1.0"
+        // The ribbon server. The default is this device itself, which `adb reverse tcp:8787 tcp:8787` connects to the
+        // server on the developer's machine; `-PribbonServerUrl=https://...` points a build elsewhere.
+        val ribbonServerUrl = (project.findProperty("ribbonServerUrl") as String?) ?: "http://127.0.0.1:8787"
+        buildConfigField("String", "RIBBON_SERVER_URL", "\"$ribbonServerUrl\"")
     }
 
     // CarPropertyManager (speed, gear) and CarUxRestrictionsManager (driving restrictions).

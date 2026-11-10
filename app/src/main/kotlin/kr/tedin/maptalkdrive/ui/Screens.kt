@@ -62,13 +62,16 @@ import androidx.compose.ui.unit.sp
 import kotlinx.coroutines.delay
 import kr.tedin.maptalkdrive.R
 import kr.tedin.maptalkdrive.channel.ChannelState
+import kr.tedin.maptalkdrive.channel.LivePhase
 import kr.tedin.maptalkdrive.demo.RibbonViewModel
 import kr.tedin.maptalkdrive.ribbon.brief.Briefing
 import kr.tedin.maptalkdrive.ribbon.brief.BriefingItem
 import kr.tedin.maptalkdrive.ribbon.geo.CurveClass
 import kr.tedin.maptalkdrive.ribbon.spec.AnchorType
 import kr.tedin.maptalkdrive.ribbon.spec.Deviation
+import kr.tedin.maptalkdrive.ribbon.spec.MatchVerdict
 import kr.tedin.maptalkdrive.ribbon.spec.RibbonStatus
+import kr.tedin.maptalkdrive.ribbon.spec.RouteSource
 
 private val Gutter = 48.dp
 /** The left part of the briefing: the words. The map takes the rest. */
@@ -106,23 +109,47 @@ private val ElevationHeight = 260.dp
 @Composable
 private fun BriefingScreen(vm: RibbonViewModel, s: ChannelState, preview: State<Double?>, t: Tokens, w: Words, onOpenDemo: () -> Unit) {
     val running by remember { derivedStateOf { preview.value != null } }
-    val r = vm.data.route(s.routeId)
+    val r = vm.channel.routeData(s.routeId)
     val set = r.anchorSet
     val b = s.briefing
     val (start, end) = w.ends(set)
+    // The navigation's route on screen: where it came from, whether it is the navigation's line, how fresh its ribbons are.
+    val live = s.live
+    val onLive = live != null && live.routeId == s.routeId
     Column(Modifier.fillMaxSize().padding(start = Gutter, end = Gutter, top = 32.dp, bottom = 24.dp)) {
         Row(verticalAlignment = Alignment.CenterVertically) {
             Column(Modifier.weight(1f)) {
                 Text("$start → $end · ${Words.at(set.lengthM)}", style = Type.context, color = t.ink2)
+                val ageMin = live?.ribbonsAtMs?.let { ((System.currentTimeMillis() - it) / 60_000).toInt() }
                 val status = when {
                     s.replaying -> w.str(R.string.sim_passing, s.replayDone, s.replayTotal)
+                    live?.phase == LivePhase.LOADING -> w.str(R.string.live_loading)
+                    live?.phase == LivePhase.FAILED -> w.liveError(live.error)
+                    onLive && ageMin != null && (live!!.stale || ageMin >= 2) -> w.str(R.string.ribbons_stale, ageMin)
                     s.naviNotice != null -> s.naviNotice
                     else -> null
                 }
                 if (status != null) Text(status, style = Type.caption, color = t.ink2)
             }
-            SimChip(t, w)
-            Spacer(Modifier.width(16.dp))
+            if (live?.phase == LivePhase.FAILED) {
+                OutlinedButton(onClick = { vm.channel.retryLive() }, modifier = Modifier.height(Touch), shape = RoundedCornerShape(12.dp)) {
+                    Text(w.str(R.string.live_retry), style = Type.button, color = t.ink)
+                }
+                Spacer(Modifier.width(16.dp))
+            }
+            if (onLive) {
+                PillChip(w.str(if (live!!.source == RouteSource.TEST) R.string.live_source_test else R.string.live_source_navi), null, t)
+                Spacer(Modifier.width(12.dp))
+                live.match?.let { m ->
+                    PillChip(w.match(m), if (m.verdict == MatchVerdict.DIFFERENT) "≠" else if (m.verdict == MatchVerdict.SAME) "=" else null, t)
+                    Spacer(Modifier.width(12.dp))
+                }
+            }
+            // Ribbons on a bundled route always come from simulated cars; on the navigation's route only when the server says so.
+            if (!onLive || live!!.simulated) {
+                SimChip(t, w)
+                Spacer(Modifier.width(16.dp))
+            }
             OutlinedButton(onClick = onOpenDemo, modifier = Modifier.height(Touch), shape = RoundedCornerShape(12.dp)) {
                 Text(w.str(R.string.demo), style = Type.button, color = t.ink)
             }
@@ -558,6 +585,21 @@ private fun AllPlaces(rows: List<BriefingItem>, w: Words, t: Tokens) {
             IconBox(24.dp) { c, sz -> chevronIcon(c, sz, t.ink2, up = open) }
         }
         if (open) PlaceList(rows, w, t)
+    }
+}
+
+/** A label in a pill, the shape [SimChip] uses, with an optional leading glyph ("=" same, "≠" may differ). */
+@Composable
+private fun PillChip(text: String, glyph: String?, t: Tokens) {
+    Row(
+        Modifier.border(1.dp, t.ink2.copy(alpha = 0.4f), RoundedCornerShape(50)).padding(horizontal = 16.dp, vertical = 8.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        if (glyph != null) {
+            Text(glyph, style = Type.caption, color = t.ink)
+            Spacer(Modifier.width(8.dp))
+        }
+        Text(text, style = Type.caption, color = t.ink2, maxLines = 1, overflow = TextOverflow.Ellipsis)
     }
 }
 

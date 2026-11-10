@@ -3,7 +3,9 @@ package kr.tedin.maptalkdrive
 import android.Manifest
 import android.car.Car
 import android.car.drivingstate.CarUxRestrictionsManager
+import android.content.Intent
 import android.content.pm.PackageManager
+import android.net.Uri
 import android.os.Build
 import android.os.Bundle
 import android.util.Log
@@ -17,6 +19,7 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import kr.tedin.maptalkdrive.demo.RibbonViewModel
+import kr.tedin.maptalkdrive.ribbon.live.TestInput
 import kr.tedin.maptalkdrive.ui.AppScreen
 import kr.tedin.maptalkdrive.ui.MaptalkTheme
 
@@ -42,14 +45,45 @@ class MainActivity : ComponentActivity() {
         watchDrivingRestrictions()
         val missing = runtimePermissions.filter { checkSelfPermission(it) != PackageManager.PERMISSION_GRANTED }
         if (missing.isEmpty()) vm.channel.startPorts() else ask.launch(missing.toTypedArray())
-        if (savedInstanceState == null) runScriptedDemo()
+        if (savedInstanceState == null) handleIntent(intent)
+    }
+
+    override fun onNewIntent(intent: Intent) {
+        super.onNewIntent(intent)
+        setIntent(intent)
+        handleIntent(intent)
+    }
+
+    private fun handleIntent(intent: Intent) {
+        testRoute(intent)
+        runScriptedDemo(intent)
+    }
+
+    /**
+     * A navigation route typed in for testing, for when the navigation itself cannot be driven (the emulator's does not
+     * answer). It goes down the same path as the navigation's own route and is marked as a test on screen:
+     * `adb shell am start -n kr.tedin.maptalkdrive/.MainActivity --es navi_origin 37.914718,128.290595 --ef navi_heading 61
+     *  --es navi_dest 38.063314,128.596721 --ei navi_distance_m 34508 --es navi_dest_name %EC%96%91%EC%96%91JC`
+     * Without `navi_origin` the route starts where the car is. `navi_via` takes "lat,lon;lat,lon", `navi_option` a
+     * route option name (FREE, SHORT_DISTANCE, ...), `navi_dest_name` may be percent-encoded.
+     */
+    private fun testRoute(intent: Intent) {
+        val dest = intent.getStringExtra("navi_dest") ?: return
+        val heading = if (intent.hasExtra("navi_heading")) intent.getFloatExtra("navi_heading", Float.NaN).toDouble().takeIf { !it.isNaN() } else null
+        val route = TestInput.route(
+            origin = intent.getStringExtra("navi_origin"), headingDeg = heading, via = intent.getStringExtra("navi_via"),
+            destination = dest, destinationName = intent.getStringExtra("navi_dest_name")?.let { Uri.decode(it) },
+            option = intent.getStringExtra("navi_option"),
+            naviDistanceM = if (intent.hasExtra("navi_distance_m")) intent.getIntExtra("navi_distance_m", 0) else null,
+        )
+        if (route == null) Log.w("MainActivity", "test route ignored: navi_dest must be lat,lon") else vm.channel.navi.inject(route)
     }
 
     /**
      * Repeatable demo for recording and measurement:
      * `adb shell am start -n kr.tedin.maptalkdrive/.MainActivity --es demo_scenario local-weather --ez demo_preview true`
      */
-    private fun runScriptedDemo() {
+    private fun runScriptedDemo(intent: Intent) {
         val scenario = intent.getStringExtra("demo_scenario") ?: return
         val preview = intent.getBooleanExtra("demo_preview", false) || intent.getIntExtra("demo_drive_speedup", 0) > 0
         lifecycleScope.launch {

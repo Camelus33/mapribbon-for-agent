@@ -5,7 +5,10 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
 import androidx.compose.ui.platform.LocalContext
 import kr.tedin.maptalkdrive.R
+import kr.tedin.maptalkdrive.channel.LiveError
 import kr.tedin.maptalkdrive.ribbon.brief.BriefingItem
+import kr.tedin.maptalkdrive.ribbon.spec.MatchVerdict
+import kr.tedin.maptalkdrive.ribbon.spec.RouteMatch
 import kr.tedin.maptalkdrive.ribbon.brief.CautionAction
 import kr.tedin.maptalkdrive.ribbon.brief.Reading
 import kr.tedin.maptalkdrive.ribbon.spec.Anchor
@@ -45,6 +48,24 @@ class Words(private val r: Resources) {
         AnchorType.CAMERA -> r.getString(R.string.speed_camera)
         AnchorType.SEGMENT -> r.getString(R.string.segment_place, name(item.anchor))
         else -> name(item.anchor)
+    }
+
+    /** Why the navigation's route is not on screen. */
+    fun liveError(e: LiveError?): String = r.getString(
+        when (e) {
+            LiveError.UNREACHABLE -> R.string.live_failed_unreachable
+            LiveError.SERVER_LOADING -> R.string.live_failed_loading
+            LiveError.NO_ROUTE -> R.string.live_failed_no_route
+            LiveError.NO_POSITION -> R.string.live_failed_no_position
+            else -> R.string.live_failed_other
+        },
+    )
+
+    /** Whether the line on screen is the navigation's route, judged by its length, with both lengths when they differ. */
+    fun match(m: RouteMatch): String = when (m.verdict) {
+        MatchVerdict.SAME -> r.getString(R.string.match_same, at(m.lengthM))
+        MatchVerdict.DIFFERENT -> r.getString(R.string.match_different, at(m.lengthM), at(m.naviDistanceM ?: 0))
+        MatchVerdict.UNKNOWN -> r.getString(R.string.match_unknown, at(m.lengthM))
     }
 
     /** What was different, for the legend and for accessibility; on the map and cards it is an icon. */
