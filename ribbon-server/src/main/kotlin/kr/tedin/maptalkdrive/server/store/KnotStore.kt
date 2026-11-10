@@ -47,6 +47,24 @@ class KnotStore(
         return out to simulated
     }
 
+    /**
+     * Forgets every knot the verification simulator sent, so the next scenario starts clean. Knots from cars are never
+     * touched. Returns how many went.
+     */
+    fun removeSimulated(): Int {
+        var n = 0
+        for ((id, list) in byAnchor) {
+            synchronized(list) {
+                val gone = list.filter { it.simulated }
+                list.removeAll(gone)
+                gone.forEach { keys.remove("${it.knot.pseudonym}|${it.knot.anchorId}|${it.knot.enteredAtMs}") }
+                n += gone.size
+                if (list.isEmpty()) byAnchor.remove(id, list)
+            }
+        }
+        return n
+    }
+
     fun prune() {
         val cutoff = clock() - retentionMs
         for ((id, list) in byAnchor) {

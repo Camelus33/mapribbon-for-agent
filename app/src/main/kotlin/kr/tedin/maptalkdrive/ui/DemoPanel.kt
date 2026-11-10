@@ -58,6 +58,8 @@ import kr.tedin.maptalkdrive.demo.RouteData
 import kr.tedin.maptalkdrive.port.Gear
 import kr.tedin.maptalkdrive.port.PortStatus
 import kr.tedin.maptalkdrive.port.VehicleSignals
+import kr.tedin.maptalkdrive.channel.LivePhase
+import kr.tedin.maptalkdrive.demo.NaviPresets
 import kr.tedin.maptalkdrive.ribbon.demo.Scenario
 import kr.tedin.maptalkdrive.ribbon.demo.StoryBeat
 import kr.tedin.maptalkdrive.ribbon.detect.TurnSignal
@@ -87,6 +89,7 @@ fun DemoPanel(vm: RibbonViewModel, s: ChannelState, t: Tokens, w: Words, onClose
     val lStatus by ch.location.status.collectAsState()
     val nStatus by ch.navi.status.collectAsState()
     var details by remember { mutableStateOf(false) }
+    var showSameBundled by remember { mutableStateOf(false) }
     Row(modifier.fillMaxHeight().width(PanelWidth)) {
         Box(Modifier.fillMaxHeight().width(1.dp).background(t.hairline))
         Column(
@@ -98,24 +101,50 @@ fun DemoPanel(vm: RibbonViewModel, s: ChannelState, t: Tokens, w: Words, onClose
                 Text(w.str(R.string.demo), style = Type.title, color = t.ink, modifier = Modifier.weight(1f))
                 IconTap(w.str(R.string.close), onClose) { c, sz -> closeIcon(c, sz, t.ink) }
             }
-            // The navigation's route, when one is set: back to it from a demo route.
+            // Navigation routes typed in as tests (the emulator's navigation does not answer), the Jeju trips.
+            Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                Text(w.str(R.string.demo_navi_presets), style = Type.caption, color = t.muted)
+                for (p in NaviPresets.all) {
+                    PanelButton(w.str(p.label), t, enabled = !s.replaying, onClick = { ch.navi.inject(p.route); onClose() }) { c, sz -> playIcon(c, sz, t.ink) }
+                }
+            }
+            // The navigation's route, when one is set: its demo scenarios, or back to it from a bundled route.
+            val preset = ch.livePreset()
+            val presetOnScreen = preset?.takeIf { s.live?.routeId == s.routeId && s.live?.phase == LivePhase.READY }
             s.live?.routeId?.let { id ->
                 val lr = ch.routeData(id)
-                val (from, to) = w.ends(lr.anchorSet)
                 Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                    Text(w.str(R.string.demo_live_route), style = Type.caption, color = t.muted)
-                    PanelButton("$from → $to · ${Words.at(lr.anchorSet.lengthM)}", t, enabled = s.routeId != id, onClick = { ch.selectRoute(id); onClose() }) { c, sz -> playIcon(c, sz, t.ink) }
+                    val (from, to) = w.ends(lr.anchorSet)
+                    Text(w.str(R.string.demo_live_route) + " · $from → $to · ${Words.at(lr.anchorSet.lengthM)}", style = Type.context, color = t.ink)
+                    if (s.routeId != id) PanelButton(w.str(R.string.demo_live_show), t, onClick = { ch.selectRoute(id); onClose() }) { c, sz -> playIcon(c, sz, t.ink) }
+                    if (presetOnScreen != null) {
+                        Text(w.str(R.string.demo_live_scenarios), style = Type.caption, color = t.ink2)
+                        val bundled = vm.data.route(presetOnScreen.bundledRouteId)
+                        for (sc in vm.data.scenarios.filter { it.routeId == presetOnScreen.bundledRouteId }) {
+                            ScenarioCard(
+                                ch.scenarioTitle(sc.id), sc, bundled, selected = s.scenarioId == sc.id, enabled = !s.replaying, t, w,
+                                action = w.str(R.string.demo_send_cars),
+                            ) { ch.runScenarioOnLive(sc.id); onClose() }
+                        }
+                    }
                 }
             }
             for (route in vm.data.routes) {
                 val scenarios = vm.data.scenarios.filter { it.routeId == route.id }
                 if (scenarios.isEmpty()) continue
+                // While the navigation's route from a preset is on screen, the same trip's bundled cards would show the
+                // same titles twice; they fold away behind one line, so a card is never tapped for the wrong route.
+                val same = presetOnScreen?.bundledRouteId == route.id
                 Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
                     val (from, to) = w.ends(route.anchorSet)
-                    Text("$from → $to · ${Words.at(route.anchorSet.lengthM)}", style = Type.caption, color = t.muted)
-                    for (sc in scenarios) {
-                        ScenarioCard(ch.scenarioTitle(sc.id), sc, route, selected = s.scenarioId == sc.id, enabled = !s.replaying, t, w) {
-                            ch.runScenario(sc.id); onClose()
+                    Text(w.str(R.string.demo_bundled) + " · $from → $to · ${Words.at(route.anchorSet.lengthM)}", style = Type.caption, color = t.muted)
+                    if (same && !showSameBundled) {
+                        PanelButton(w.str(R.string.demo_show_bundled), t, onClick = { showSameBundled = true }) { c, sz -> chevronIcon(c, sz, t.ink, up = false) }
+                    } else {
+                        for (sc in scenarios) {
+                            ScenarioCard(ch.scenarioTitle(sc.id), sc, route, selected = s.routeId == route.id && s.scenarioId == sc.id, enabled = !s.replaying, t, w) {
+                                ch.runScenario(sc.id); onClose()
+                            }
                         }
                     }
                 }
@@ -138,7 +167,8 @@ fun DemoPanel(vm: RibbonViewModel, s: ChannelState, t: Tokens, w: Words, onClose
 /** One scenario: where its cars do what (a small map), what they do and in how many cars (icons and counts). */
 @Composable
 private fun ScenarioCard(
-    title: String, scenario: Scenario, route: RouteData, selected: Boolean, enabled: Boolean, t: Tokens, w: Words, onClick: () -> Unit,
+    title: String, scenario: Scenario, route: RouteData, selected: Boolean, enabled: Boolean, t: Tokens, w: Words,
+    action: String? = null, onClick: () -> Unit,
 ) {
     val beats = scenario.story.sortedBy { it.fromM }
     val cars = scenario.vehicles.size
@@ -174,6 +204,16 @@ private fun ScenarioCard(
                 IconBox(24.dp) { c, sz -> carIcon(c, sz, t.muted) }
                 Spacer(Modifier.width(4.dp))
                 Text("$cars", style = Type.captionNum, color = t.muted)
+            }
+            if (action != null) {
+                Row(
+                    Modifier.clip(RoundedCornerShape(50)).background(t.actionBg).padding(horizontal = 14.dp, vertical = 6.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    IconBox(18.dp) { c, sz -> playIcon(c, sz, t.actionInk) }
+                    Spacer(Modifier.width(6.dp))
+                    Text(action, style = Type.caption, color = t.actionInk)
+                }
             }
         }
     }

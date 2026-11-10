@@ -31,6 +31,7 @@ import java.util.zip.GZIPOutputStream
  *
  * - `POST /v1/route` [RouteRequest] → [RouteResponse]
  * - `POST /v1/knots` [KnotUpload] → [KnotUploadResult]
+ * - `DELETE /v1/knots?simulated=true` → forgets the simulator's knots (cars' knots stay) → [KnotUploadResult] (`rejected` = removed)
  * - `GET /v1/ribbons?route=<routeId>` → [RibbonsResponse]
  * - `GET /v1/elevation?route=<routeId>` → the road's height profile (`maptalk.elevation/1`), or 202 while it is built
  * - `GET /v1/health` → [ServerHealth]
@@ -88,6 +89,10 @@ class HttpApi(
     }
 
     private fun upload(ex: HttpExchange): Reply {
+        if (ex.requestMethod == "DELETE") {
+            if (query(ex)["simulated"] != "true") throw HttpError(400, "bad_request", "only simulated knots can be removed")
+            return ok(KnotUploadResult.serializer(), KnotUploadResult(accepted = 0, duplicates = 0, rejected = knots.removeSimulated()))
+        }
         if (ex.requestMethod != "POST") throw HttpError(405, "method_not_allowed")
         val up = parse(ex, KnotUpload.serializer())
         if (up.spec != KnotUpload.KNOT_UPLOAD_SPEC) throw HttpError(400, "bad_request", "spec")

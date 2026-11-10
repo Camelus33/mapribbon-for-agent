@@ -165,4 +165,14 @@
     <string name="demo_live_route">내비 경로</string>
     <string name="log_live_route">%1$s 가는 내비 경로를 리본 서버에 묻는 중</string>
     <string name="log_upload">리본 서버로 매듭 %1$d개를 보냈습니다</string>
+    <string name="demo_navi_presets">내비 경로 넣기 · 시험 입력</string>
+    <string name="preset_1100">1100도로 · 노형 → 중문</string>
+    <string name="preset_pyeonghwa">평화로 · 노형 → 서광1교차로 → 중문</string>
+    <string name="demo_live_show">내비 경로 보기</string>
+    <string name="demo_live_scenarios">이 경로에 가상 차 보내기</string>
+    <string name="log_live_sim">가상 차 %1$d대가 매듭 %2$d개를 리본 서버에 올렸습니다</string>
+    <string name="live_sim_failed">가상 차를 리본 서버에 보내지 못했습니다</string>
+    <string name="demo_send_cars">가상 차 보내기</string>
+    <string name="demo_bundled">시연 노선(APK)</string>
+    <string name="demo_show_bundled">같은 길의 시연 노선 카드 보기 (내비 경로 아님)</string>
 </resources>

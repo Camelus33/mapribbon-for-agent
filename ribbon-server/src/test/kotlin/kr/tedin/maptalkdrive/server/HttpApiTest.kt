@@ -86,6 +86,18 @@ class HttpApiTest {
         assertEquals(KnotUploadResult(0, 0, 2), RibbonJson.decodeFromString(KnotUploadResult.serializer(), up.body()))
     }
 
+    @Test fun `the simulator's knots can be cleared, cars' knots stay`() {
+        val k = { p: String -> Knot(anchorId = "S:a", dir = "E", pseudonym = p, enteredAtMs = now - 2, exitedAtMs = now - 1) }
+        store.add(KnotUpload(simulated = true, knots = listOf(k("sim-v1"), k("sim-v2"))))
+        store.add(KnotUpload(simulated = false, knots = listOf(k("car"))))
+        val del = http.send(HttpRequest.newBuilder(URI("$base/v1/knots?simulated=true")).DELETE().build(), HttpResponse.BodyHandlers.ofString())
+        assertEquals(KnotUploadResult(0, 0, 2), RibbonJson.decodeFromString(KnotUploadResult.serializer(), del.body()))
+        assertEquals(1, store.size)
+        assertEquals(400, http.send(HttpRequest.newBuilder(URI("$base/v1/knots")).DELETE().build(), HttpResponse.BodyHandlers.ofString()).statusCode())
+        // A cleared simulator knot may be sent again.
+        assertEquals(1, store.add(KnotUpload(simulated = true, knots = listOf(k("sim-v1")))).accepted)
+    }
+
     @Test fun `knots are kept for three hours and then forgotten`() {
         store.add(KnotUpload(knots = listOf(Knot(anchorId = "S:a", dir = "E", pseudonym = "p", enteredAtMs = now - 2, exitedAtMs = now - 1))))
         assertEquals(1, store.size)

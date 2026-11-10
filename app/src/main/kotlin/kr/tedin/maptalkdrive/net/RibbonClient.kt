@@ -42,6 +42,10 @@ class RibbonClient(private val base: String) {
     suspend fun upload(knots: List<Knot>, simulated: Boolean = false): KnotUploadResult =
         call("POST", "/v1/knots", RibbonJson.encodeToString(KnotUpload.serializer(), KnotUpload(simulated = simulated, knots = knots)), KnotUploadResult.serializer())
 
+    /** Forgets the knots the demo's simulated cars sent before (cars' own knots stay); returns how many went. */
+    suspend fun clearSimulated(): Int =
+        call("DELETE", "/v1/knots?simulated=true", null, KnotUploadResult.serializer()).rejected
+
     /** The road's height along a route the server drew; null while the server is still building it (202). */
     suspend fun elevation(routeId: String): ElevationFile? =
         call("GET", "/v1/elevation?route=" + URLEncoder.encode(routeId, "UTF-8"), null, ElevationFile.serializer(), nullOn202 = true)

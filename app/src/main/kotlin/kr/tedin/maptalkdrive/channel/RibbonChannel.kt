@@ -20,6 +20,8 @@ import kr.tedin.maptalkdrive.adapter.PleosLocationAdapter
 import kr.tedin.maptalkdrive.adapter.PleosNaviAdapter
 import kr.tedin.maptalkdrive.adapter.PleosVehicleAdapter
 import kr.tedin.maptalkdrive.demo.DemoData
+import kr.tedin.maptalkdrive.demo.NaviPreset
+import kr.tedin.maptalkdrive.demo.NaviPresets
 import kr.tedin.maptalkdrive.demo.RouteData
 import kr.tedin.maptalkdrive.net.KnotUploader
 import kr.tedin.maptalkdrive.net.RibbonClient
@@ -223,6 +225,49 @@ class RibbonChannel private constructor(context: Context) {
             while (isActive) {
                 fetchRibbons()
                 delay(REFRESH_MS)
+            }
+        }
+    }
+
+    /** The demo preset the navigation's route came from, if it did. */
+    fun livePreset(): NaviPreset? = NaviPresets.of(live?.route)
+
+    /**
+     * Sends the simulated cars of one bundled scenario down the navigation's route, for the demo: the server's earlier
+     * simulated knots are cleared first, so one scenario's story is not mixed with another's (cars' knots stay), and
+     * the new ones go up marked simulated, so the screen says so. The scenario's places are metres along its bundled
+     * route, which is the same road from the same start.
+     */
+    fun runScenarioOnLive(id: String) {
+        val l = live ?: return
+        val scenario = data.scenarios.firstOrNull { it.id == id } ?: return
+        replayJob?.cancel()
+        selectRoute(l.data.id)
+        _state.update { it.copy(scenarioId = id, replaying = true, replayDone = 0, replayTotal = scenario.vehicles.size) }
+        log(ctx.getString(R.string.log_scenario, scenarioTitle(id)))
+        replayJob = scope.launch {
+            try {
+                client.clearSimulated()
+                val now = System.currentTimeMillis()
+                val r = l.data
+                val tied = mutableListOf<Knot>()
+                for (v in scenario.vehicles.sortedByDescending { it.startMinutesAgo }) {
+                    tied += withContext(Dispatchers.Default) {
+                        val detector = PassDetector(r.route, r.anchorSet.anchors, pseudonym = "sim-${v.id}", widthClass = v.widthClass)
+                        ScenarioDrive.samples(v, r.route, r.anchorSet.anchors, startMs = now - v.startMinutesAgo * 60_000L)
+                            .flatMap { detector.accept(it) }.filter { it.exitedAtMs <= now }.toList()
+                    }
+                    _state.update { it.copy(replayDone = it.replayDone + 1) }
+                }
+                for (batch in tied.chunked(500)) client.upload(batch, simulated = true)
+                tied.lastOrNull()?.let { k -> _state.update { it.copy(lastKnot = k) } }
+                log(ctx.getString(R.string.log_live_sim, scenario.vehicles.size, tied.size))
+                fetchRibbons()
+            } catch (e: RibbonClient.Failure) {
+                Log.w(TAG, "simulated cars not sent: ${e.message}")
+                note(ctx.getString(R.string.live_sim_failed))
+            } finally {
+                _state.update { it.copy(replaying = false) }
             }
         }
     }

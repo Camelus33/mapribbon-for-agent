@@ -176,4 +176,14 @@
     <string name="demo_live_route">Navigation route</string>
     <string name="log_live_route">Navigation route to %1$s: asking the ribbon server</string>
     <string name="log_upload">Sent %1$d knots to the ribbon server</string>
+    <string name="demo_navi_presets">Navigation route · test input</string>
+    <string name="preset_1100">1100 Road · Nohyeong → Jungmun</string>
+    <string name="preset_pyeonghwa">Pyeonghwa-ro · Nohyeong → Seogwang 1 → Jungmun</string>
+    <string name="demo_live_show">Show the navigation route</string>
+    <string name="demo_live_scenarios">Send simulated cars down this route</string>
+    <string name="log_live_sim">%1$d simulated cars sent %2$d knots to the ribbon server</string>
+    <string name="live_sim_failed">Simulated cars could not be sent to the ribbon server</string>
+    <string name="demo_send_cars">Send simulated cars</string>
+    <string name="demo_bundled">Bundled route</string>
+    <string name="demo_show_bundled">Show the bundled route\'s cards (not the navigation route)</string>
 </resources>
