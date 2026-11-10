@@ -131,6 +131,14 @@ ribbon-server/build/install/ribbon-server/bin/ribbon-server --data ribbon-server
   - `GET /v1/ribbons?route=<id>`: 그 경로의 리본을 돌려준다.
   - `GET /v1/health`
 - 경로 응답 시간(같은 날 측정): 서울역→부산역 389 km는 0.8초(압축 39 KB), 대안 경로 3개를 비교하는 서울→강릉은 1.9초였다.
+- **고도 띠**: 내비 경로에도 시연 노선처럼 지도 아래에 출발점부터 도착점까지 고도 띠가 붙는다.
+  - 출처와 규칙은 시연 노선(`build-elevation.mjs`)과 같다. Copernicus DEM GLO-90을 Open-Meteo 고도 API로 읽고, 50 m 간격에 ±150 m로 다듬으며, 다리와 터널은 양 끝 높이를 직선으로 잇는다.
+  - 다리·터널 구간은 GraphHopper의 도로 환경 정보(`road_environment`)로 안다.
+  - 서버는 경로를 그리자마자 뒤에서 높이를 모으고, `GET /v1/elevation?route=<id>`로 내준다. 아직 만드는 중이면 202로 답한다. 앱은 받는 대로 고도 띠를 그린다.
+  - 무료 API는 점 하나를 요청 1회로 세고 1분에 600점까지 받는다. 그래서 높이는 100 m마다 받고(지형 모델 칸이 약 90 m) 그 사이 50 m 점은 보간한다. 한도가 차면 다음 분까지 기다린다.
+  - 처음 보는 긴 길은 몇 분이 걸린다. 서울역→양양JC 171 km는 약 2분 반이었다.
+  - 한 번 받은 높이는 `ribbon-server/data/heights-v1.tsv`에 남아, 같은 길은 다시 묻지 않는다. **시연할 경로는 미리 한 번 요청해 두면 바로 뜬다.**
+  - 서울양양고속도로 인제IC→양양JC를 시연 노선과 비교하면, 높이 692개와 다리·터널 21곳이 같고, 높이 차이는 중앙값 3 m, 최대 11 m였다.
 
 ### 에뮬레이터에서
 
@@ -194,8 +202,8 @@ Gleo AI용 함수 네 개(`get_route_ribbons`, `get_next_unusual`, `get_cautions
 ## 빌드
 
 ```
-./gradlew :ribbon-core:test        # 핵심 로직 테스트 89개 (네 실제 노선 끝-끝, 곡률·고도·구간·날씨·조심할 곳, 앵커 생성과 노선 무관 ID 포함)
-./gradlew :ribbon-server:test      # 서버 테스트 11개 (작은 합성 OSM으로 GraphHopper 경로·방향·옵션, 시설물 스캔, HTTP API)
+./gradlew :ribbon-core:test        # 핵심 로직 테스트 93개 (네 실제 노선 끝-끝, 곡률·고도·구간·날씨·조심할 곳, 앵커 생성과 노선 무관 ID, 내비 경로 고도 포함)
+./gradlew :ribbon-server:test      # 서버 테스트 13개 (작은 합성 OSM으로 GraphHopper 경로·방향·옵션, 시설물 스캔, HTTP API, 고도와 요청 한도)
 ./gradlew :ribbon-server:test -Pkorea   # 실제 한국 지도 스모크 테스트 3개 (서버가 지도를 한 번 들인 뒤)
 ./gradlew :app:submissionApk       # apk/Tedin_MapRibbonForAgent_release.apk 생성
 ```
@@ -208,7 +216,7 @@ Gleo AI용 함수 네 개(`get_route_ribbons`, `get_next_unusual`, `get_cautions
 |---|---|
 | `ribbon-core/` | Android·Pleos에 의존하지 않는 Kotlin 라이브러리. 차량과 리본 서버가 같은 코드를 쓴다. `detect`(매듭), `agg`(리본·평소값·이웃 비교), `brief`(경로 브리핑, 뜻 읽기, 조심할 곳), `geo`(경로 색인, 곡률·헤어핀, 고도·긴 내리막·기온 예측, 해의 높이), `pseudo`(익명 토큰), `spec`(규격, 서버와 주고받는 형식 포함), `demo`(시나리오), `route`(선에 앵커 달기, 노선과 무관한 ID, 길이로 같은 길 판정), `live`(내비 답 모으기, 시험 입력) |
 | `app/` | AAOS 앱. `channel/`(기기 안의 리본 채널, 기록 서비스, 다른 에이전트용 ContentProvider), `adapter/`(Pleos Vehicle·FusedLocation·NaviHelper. 신호 하나가 실패해도 앱은 계속 동작), `ui/`(경로 지도, 고도 띠, 조심할 곳, 아이콘, 기록 중 화면, 시연 패널, 색·글자 토큰), `res/values*/`(영어·한국어 문구) |
-| `ribbon-server/` | 리본 서버(JVM). `routing/`(GraphHopper 11.1, 내비 경로 옵션 → custom model), `facility/`(OSM 파일 한 번 훑어 분기점·교차로·요금소·카메라·터널 이름), `service/`(경로 → 앵커, 경로 ID 캐시), `store/`(매듭 3시간 메모리 보관), `api/`(HTTP), `sim/`(확인용 시뮬레이터). 지도와 그래프는 `ribbon-server/data/`(저장소 밖) |
+| `ribbon-server/` | 리본 서버(JVM). `routing/`(GraphHopper 11.1, 내비 경로 옵션 → custom model), `facility/`(OSM 파일 한 번 훑어 분기점·교차로·요금소·카메라·터널 이름), `elevation/`(내비 경로의 고도 띠, Open-Meteo 높이와 디스크 캐시), `service/`(경로 → 앵커, 경로 ID 캐시), `store/`(매듭 3시간 메모리 보관), `api/`(HTTP), `sim/`(확인용 시뮬레이터). 지도와 그래프는 `ribbon-server/data/`(저장소 밖) |
 | `app/src/main/kotlin/.../net/` | 리본 서버 클라이언트와 매듭 업로더 |
 | `app/src/main/assets/gleo/` | Gleo AI 함수 스키마 |
 | `tools/anchors/` | OSM에서 시연 노선과 시설물 추출(영어 이름 포함). `build-anchors.mjs`는 고속도로, `build-route44.mjs`는 한계령(일방통행 쌍을 고려한 최단 경로, 다른 번호 도로와 만나는 곳을 분기점으로), `build-jeju.mjs`는 제주 두 코스(번호 도로를 따라가되 번호 없는 회전교차로는 건너는 가중 최단 경로. 다른 번호 도로가 닿는 곳, 다른 도로로 꺾는 곳, 이름 있는 교차로를 분기점으로) → `app/src/main/assets/routes/<id>/{route.geojson,anchors.json}`. `build-elevation.mjs <id>`는 만들어진 노선에 고도를 붙인다(50 m 간격, OSM 다리·터널 구간은 양 끝을 직선으로) → `elevation.json` |
@@ -225,6 +233,7 @@ Gleo AI용 함수 네 개(`get_route_ribbons`, `get_next_unusual`, `get_cautions
   - 매듭에는 날짜별 가명만 있다. 서버는 같은 날 같은 차의 매듭을 이 가명으로 묶을 수 있다.
   - 서버는 매듭을 메모리에만 두고, 가장 긴 집계 창(3시간)이 지나면 지운다. 가명은 로그에 남기지 않는다.
   - 경로를 물을 때 출발점(차의 위치)과 도착점 좌표가 서버로 간다. 서버는 그 요청에서 만든 경로 64개를 메모리에 캐시한다.
+  - 서버는 고도 띠를 만들려고 경로를 따라 100 m마다 찍은 좌표를 Open-Meteo로 보낸다(아래 "확인하지 못한 것").
 - 앱에서 평문 HTTP는 127.0.0.1과 localhost로만 허용한다. 다른 주소는 HTTPS여야 한다.
 - 다른 에이전트에게는 집계된 리본만 읽기 전용으로 열려 있다.
 
@@ -254,7 +263,10 @@ Gleo AI용 함수 네 개(`get_route_ribbons`, `get_next_unusual`, `get_cautions
   - 그래서 분기점에만 있는 지표(늦은 끼어들기, 진입 감속)는 경로에 분기점이 하나뿐이면 비교 대상이 없어 "평소대로"로 남는다.
   - 시뮬레이션으로 서양양IC 끼어들기 4/9대를 올려도 표시되지 않았다.
   - 4주치 리본이 쌓이면 평소값을 만든다. 그때는 지도·GraphHopper 버전이 바뀔 때 ID를 옮기는 작업도 필요하다.
-- **내비 경로의 고도 띠와 가상 카메라**: 내비 경로에는 고도 띠가 없다. 가상 카메라도 넣지 않고, OSM에 있는 카메라만 쓴다.
+- **내비 경로의 가상 카메라**: 내비 경로에는 가상 카메라를 넣지 않고, OSM에 있는 카메라만 쓴다.
+- **내비 경로의 높이를 실행 중에 외부에서 받는다**: 서버는 내비 경로의 높이를 Open-Meteo 고도 API에서 받는다.
+  - 그래서 처음 보는 길은 인터넷이 있어야 한다.
+  - 경로를 따라 100 m마다 찍은 좌표가 Open-Meteo로 간다. 실제 서비스에서는 Copernicus DEM 타일을 서버에 내려받아 두고 그 안에서 읽는 편이 맞다(외부 호출 없음, 요청 한도 없음).
 - **Gleo AI 연동**: 함수 네 개의 스키마는 APK에 들어 있다. 실제 호출은 Gleo 측 연동 절차를 거쳐야 열리므로 아직 확인하지 못했다. 출발 전 음성 브리핑과 함께 2차 PT까지 연결하는 것을 목표로 한다.
 - **백그라운드에서 시작하는 기록**: 이 빌드는 화면이 떠 있을 때 주행 상태 변화를 받아 기록을 시작한다. 내비가 앞에 있는 상태에서 주행이 시작되는 경우는 Android의 백그라운드 포그라운드 서비스 제한 때문에 서비스 없이 프로세스 안에서만 기록된다.
 - **영어 시설물 이름**: OSM에 영어 이름이 없는 터널은 기계 로마자 표기다(예: Girin 5 Tunnel).

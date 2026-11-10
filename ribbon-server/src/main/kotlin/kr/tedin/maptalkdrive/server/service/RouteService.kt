@@ -27,21 +27,28 @@ class RouteService(
     private val catalog: FacilityCatalog,
     val dataVersion: String,
     cacheSize: Int = 64,
+    /** Called once per route drawn (not for cached answers): the elevation profile starts building here. */
+    private val onDrawn: (routeId: String, facts: PathFacts) -> Unit = { _, _ -> },
 ) {
-    private val cache: MutableMap<String, RouteResponse> = Collections.synchronizedMap(
-        object : LinkedHashMap<String, RouteResponse>(16, 0.75f, true) {
-            override fun removeEldestEntry(eldest: MutableMap.MutableEntry<String, RouteResponse>?) = size > cacheSize
+    private class Entry(val response: RouteResponse, val facts: PathFacts)
+
+    private val cache: MutableMap<String, Entry> = Collections.synchronizedMap(
+        object : LinkedHashMap<String, Entry>(16, 0.75f, true) {
+            override fun removeEldestEntry(eldest: MutableMap.MutableEntry<String, Entry>?) = size > cacheSize
         },
     )
 
     val cached: Int get() = cache.size
 
-    fun get(routeId: String): RouteResponse? = cache[routeId]
+    fun get(routeId: String): RouteResponse? = cache[routeId]?.response
+
+    /** What the router said about the line of a cached route, for its elevation profile. */
+    fun facts(routeId: String): PathFacts? = cache[routeId]?.facts
 
     fun route(req: RouteRequest): RouteResponse {
         validate(req)
         val id = routeId(req)
-        cache[id]?.let { return it }
+        cache[id]?.let { return it.response }
         val candidates = draw(req)
         val pick = RouteMatching.pick(candidates.map { it.distanceM }, req.naviDistanceM)
         val facts = candidates[pick].facts
@@ -60,7 +67,8 @@ class RouteService(
             anchorSet = anchors,
             match = RouteMatching.match(anchors.lengthM, req.naviDistanceM, pick, candidates.size),
         )
-        cache[id] = response
+        cache[id] = Entry(response, facts)
+        onDrawn(id, facts)
         return response
     }
 

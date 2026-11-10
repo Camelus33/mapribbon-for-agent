@@ -3,6 +3,7 @@ package kr.tedin.maptalkdrive.net
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.KSerializer
+import kr.tedin.maptalkdrive.ribbon.geo.ElevationFile
 import kr.tedin.maptalkdrive.ribbon.spec.ApiError
 import kr.tedin.maptalkdrive.ribbon.spec.Knot
 import kr.tedin.maptalkdrive.ribbon.spec.KnotUpload
@@ -41,7 +42,13 @@ class RibbonClient(private val base: String) {
     suspend fun upload(knots: List<Knot>, simulated: Boolean = false): KnotUploadResult =
         call("POST", "/v1/knots", RibbonJson.encodeToString(KnotUpload.serializer(), KnotUpload(simulated = simulated, knots = knots)), KnotUploadResult.serializer())
 
-    private suspend fun <T> call(method: String, path: String, body: String?, serializer: KSerializer<T>): T = withContext(Dispatchers.IO) {
+    /** The road's height along a route the server drew; null while the server is still building it (202). */
+    suspend fun elevation(routeId: String): ElevationFile? =
+        call("GET", "/v1/elevation?route=" + URLEncoder.encode(routeId, "UTF-8"), null, ElevationFile.serializer(), nullOn202 = true)
+
+    private suspend fun <T> call(
+        method: String, path: String, body: String?, serializer: KSerializer<T>, nullOn202: Boolean = false,
+    ): T = withContext(Dispatchers.IO) {
         val conn = try {
             (URL(base.trimEnd('/') + path).openConnection() as HttpURLConnection).apply {
                 requestMethod = method
@@ -60,6 +67,8 @@ class RibbonClient(private val base: String) {
         try {
             val code = try { conn.responseCode } catch (e: IOException) { throw Failure.Unreachable(e) }
             val text = (if (code in 200..299) conn.inputStream else conn.errorStream)?.use { it.readBytes().toString(Charsets.UTF_8) }.orEmpty()
+            @Suppress("UNCHECKED_CAST")
+            if (code == 202 && nullOn202) return@withContext null as T
             if (code in 200..299) return@withContext RibbonJson.decodeFromString(serializer, text)
             val err = runCatching { RibbonJson.decodeFromString(ApiError.serializer(), text) }.getOrNull()
             throw when {

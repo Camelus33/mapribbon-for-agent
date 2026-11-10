@@ -5,6 +5,8 @@ import kr.tedin.maptalkdrive.ribbon.spec.LatLon
 import kr.tedin.maptalkdrive.ribbon.spec.RouteOption
 import kr.tedin.maptalkdrive.ribbon.spec.RouteRequest
 import kr.tedin.maptalkdrive.server.api.HttpApi
+import kr.tedin.maptalkdrive.server.elevation.ElevationService
+import kr.tedin.maptalkdrive.server.elevation.OpenMeteoHeights
 import kr.tedin.maptalkdrive.server.facility.FacilityScanner
 import kr.tedin.maptalkdrive.server.routing.GhConfig
 import kr.tedin.maptalkdrive.server.routing.GhRouter
@@ -53,7 +55,10 @@ fun main(args: Array<String>) {
     val hopper = GhConfig.open(osm, File(data, "graph-cache-${GhConfig.GRAPH_VERSION}"))
     val file = facilities.get()
     val router = GhRouter(hopper)
-    val service = RouteService(router::route, FacilityCatalog(file), file.dataVersion)
+    val catalog = FacilityCatalog(file)
+    val elevation = ElevationService(OpenMeteoHeights(File(data, "heights-v1.tsv")), tunnelName = { catalog.tunnel(it)?.name })
+    val service = RouteService(router::route, catalog, file.dataVersion, onDrawn = { id, facts -> elevation.ensure(id, facts) })
+    api.elevation.set(elevation)
     Runtime.getRuntime().addShutdownHook(Thread { hopper.close() })
     api.service.set(service)
     api.phase.set("ready")

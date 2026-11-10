@@ -30,6 +30,7 @@ import kr.tedin.maptalkdrive.ribbon.brief.Briefing
 import kr.tedin.maptalkdrive.ribbon.demo.ScenarioDrive
 import kr.tedin.maptalkdrive.ribbon.detect.PassDetector
 import kr.tedin.maptalkdrive.ribbon.detect.Sample
+import kr.tedin.maptalkdrive.ribbon.geo.ElevationProfile
 import kr.tedin.maptalkdrive.ribbon.geo.LngLat
 import kr.tedin.maptalkdrive.ribbon.geo.RouteIndex
 import kr.tedin.maptalkdrive.ribbon.live.NaviRoute
@@ -65,6 +66,8 @@ data class LiveView(
     val error: LiveError? = null,
     /** The ribbons could not be refreshed last time (the route itself is still on screen). */
     val stale: Boolean = false,
+    /** The road's height has arrived and is drawn under the map. */
+    val elevation: Boolean = false,
 )
 
 data class ChannelState(
@@ -119,7 +122,8 @@ class RibbonChannel private constructor(context: Context) {
         val route: NaviRoute,
         val request: RouteRequest,
         val response: RouteResponse,
-        val data: RouteData,
+        /** Replaced once, when the road's height arrives. */
+        @Volatile var data: RouteData,
         @Volatile var ribbons: List<RibbonState>? = null,
     )
     @Volatile private var live: LiveRoute? = null
@@ -215,6 +219,7 @@ class RibbonChannel private constructor(context: Context) {
                 )
             }
             if (wasRecording) restartRecorder()
+            launch { fetchElevation(live!!) }
             while (isActive) {
                 fetchRibbons()
                 delay(REFRESH_MS)
@@ -255,6 +260,31 @@ class RibbonChannel private constructor(context: Context) {
         } catch (e: RibbonClient.Failure) {
             Log.i(TAG, "ribbons not refreshed: ${e.message}")
             _state.update { s -> s.copy(live = s.live?.copy(stale = true)) }
+        }
+    }
+
+    /**
+     * The road's height, which the server builds after drawing the route (a long route takes some seconds): asked for
+     * a few times with growing pauses, then drawn under the map like on the bundled routes.
+     */
+    private suspend fun fetchElevation(l: LiveRoute) {
+        for (wait in ELEVATION_WAITS_MS) {
+            delay(wait)
+            if (live !== l) return
+            val file = try {
+                client.elevation(l.response.routeId)
+            } catch (e: RibbonClient.Failure.NotFound) {
+                // The server restarted and forgot the route: asking for it again rebuilds the same route and profile.
+                runCatching { client.route(l.request) }
+                null
+            } catch (e: RibbonClient.Failure) {
+                Log.i(TAG, "no elevation yet: ${e.message}")
+                null
+            } ?: continue
+            val profile = runCatching { ElevationProfile(file) }.getOrNull() ?: return
+            l.data = RouteData(l.data.anchorSet, l.data.route, profile)
+            _state.update { s -> s.copy(live = s.live?.copy(elevation = true)) }
+            return
         }
     }
 
@@ -397,6 +427,8 @@ class RibbonChannel private constructor(context: Context) {
     companion object {
         private const val TAG = "RibbonChannel"
         private const val REFRESH_MS = 60_000L
+        // A long route is built at the API's pace (600 points a minute) the first time: keep asking for up to 10 minutes.
+        private val ELEVATION_WAITS_MS = listOf(0L, 1_500L, 3_000L, 5_000L, 8_000L, 13_000L) + List(28) { 20_000L }
 
         @Volatile private var instance: RibbonChannel? = null
 

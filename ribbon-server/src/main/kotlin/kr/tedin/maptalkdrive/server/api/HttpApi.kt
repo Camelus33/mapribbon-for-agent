@@ -4,6 +4,7 @@ import com.sun.net.httpserver.HttpExchange
 import com.sun.net.httpserver.HttpServer
 import kotlinx.serialization.KSerializer
 import kr.tedin.maptalkdrive.ribbon.agg.RibbonEngine
+import kr.tedin.maptalkdrive.ribbon.geo.ElevationFile
 import kr.tedin.maptalkdrive.ribbon.spec.ApiError
 import kr.tedin.maptalkdrive.ribbon.spec.KnotUpload
 import kr.tedin.maptalkdrive.ribbon.spec.KnotUploadResult
@@ -12,6 +13,7 @@ import kr.tedin.maptalkdrive.ribbon.spec.RibbonsResponse
 import kr.tedin.maptalkdrive.ribbon.spec.RouteRequest
 import kr.tedin.maptalkdrive.ribbon.spec.RouteResponse
 import kr.tedin.maptalkdrive.ribbon.spec.ServerHealth
+import kr.tedin.maptalkdrive.server.elevation.ElevationService
 import kr.tedin.maptalkdrive.server.routing.NoRouteException
 import kr.tedin.maptalkdrive.server.service.BadRequestException
 import kr.tedin.maptalkdrive.server.service.RouteService
@@ -30,6 +32,7 @@ import java.util.zip.GZIPOutputStream
  * - `POST /v1/route` [RouteRequest] → [RouteResponse]
  * - `POST /v1/knots` [KnotUpload] → [KnotUploadResult]
  * - `GET /v1/ribbons?route=<routeId>` → [RibbonsResponse]
+ * - `GET /v1/elevation?route=<routeId>` → the road's height profile (`maptalk.elevation/1`), or 202 while it is built
  * - `GET /v1/health` → [ServerHealth]
  */
 class HttpApi(
@@ -39,6 +42,7 @@ class HttpApi(
     port: Int = 8787,
 ) {
     val service = AtomicReference<RouteService?>(null)
+    val elevation = AtomicReference<ElevationService?>(null)
     val phase = AtomicReference("loading")
 
     private val server: HttpServer = HttpServer.create(InetSocketAddress(host, port), 0).apply {
@@ -47,6 +51,7 @@ class HttpApi(
         createContext("/v1/route") { ex -> handle(ex) { route(ex) } }
         createContext("/v1/knots") { ex -> handle(ex) { upload(ex) } }
         createContext("/v1/ribbons") { ex -> handle(ex) { ribbons(ex) } }
+        createContext("/v1/elevation") { ex -> handle(ex) { elevation(ex) } }
     }
 
     val port: Int get() = server.address.port
@@ -100,6 +105,19 @@ class HttpApi(
         val now = clock()
         val states = RibbonEngine(anchors).states(list, now)
         return ok(RibbonsResponse.serializer(), RibbonsResponse(routeId = id, nowMs = now, simulated = simulated, knots = list.size, ribbons = states))
+    }
+
+    private fun elevation(ex: HttpExchange): Reply {
+        if (ex.requestMethod != "GET") throw HttpError(405, "method_not_allowed")
+        val svc = service.get() ?: throw HttpError(503, "loading", phase.get())
+        val el = elevation.get() ?: throw HttpError(503, "loading", phase.get())
+        val id = query(ex)["route"] ?: throw HttpError(400, "bad_request", "route")
+        val facts = svc.facts(id) ?: throw HttpError(404, "unknown_route", id)
+        return when (val s = el.ensure(id, facts)) {
+            is ElevationService.State.Ready -> ok(ElevationFile.serializer(), s.file)
+            ElevationService.State.Pending -> Reply(202, RibbonJson.encodeToString(ApiError.serializer(), ApiError("pending")))
+            is ElevationService.State.Failed -> throw HttpError(502, "elevation_unavailable", s.reason)
+        }
     }
 
     private fun <T> parse(ex: HttpExchange, serializer: KSerializer<T>): T {
