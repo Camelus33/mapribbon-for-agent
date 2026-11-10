@@ -121,7 +121,9 @@ class HttpApi(
             f()
         } catch (e: HttpError) {
             Reply(e.status, RibbonJson.encodeToString(ApiError.serializer(), ApiError(e.error, e.message)))
-        } catch (e: Exception) {
+        } catch (e: Throwable) {
+            // Errors too (a class missing after the jars were replaced under a running server, out of memory): the
+            // client must always get an answer, never a connection left open.
             System.err.println("ribbon-server: ${ex.requestMethod} ${ex.requestURI.path} failed: $e")
             Reply(500, RibbonJson.encodeToString(ApiError.serializer(), ApiError("internal", e.javaClass.simpleName)))
         }
