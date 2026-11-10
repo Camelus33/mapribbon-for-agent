@@ -4,6 +4,8 @@
   "routeId": "J1135S",
   "title": "평화로: 광평교차로 신호 대기 정체, 카메라 앞 급제동, 서광1교차로 직전 끼어들기",
   "titleEn": "Pyeonghwa-ro: a queue at the Gwangpyeong signal, braking at the camera, late merges before Seogwang 1",
+  "label": "정체 · 카메라 · 끼어들기",
+  "labelEn": "Queue · camera · late merge",
   "description": "시속 80 km 도로의 평면 교차로인 광평교차로 신호 대기 줄이 600 m 뒤 17.6–19.6 km 구간까지 이어져, 9대 중 4대가 거기서 급제동하고 멈춘다. 3대가 가상 단속카메라 앞에서 급제동하고, 4대가 중문 쪽으로 꺾는 서광1교차로 300 m 안에서 방향지시등을 켠다.",
   "vehicles": [
     {

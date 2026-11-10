@@ -66,7 +66,6 @@ import kr.tedin.maptalkdrive.channel.LivePhase
 import kr.tedin.maptalkdrive.demo.RibbonViewModel
 import kr.tedin.maptalkdrive.demo.WeaveFrame
 import kr.tedin.maptalkdrive.ribbon.brief.Weave
-import kr.tedin.maptalkdrive.ribbon.spec.Metric
 import kr.tedin.maptalkdrive.ribbon.brief.Briefing
 import kr.tedin.maptalkdrive.ribbon.brief.BriefingItem
 import kr.tedin.maptalkdrive.ribbon.geo.CurveClass
@@ -185,9 +184,7 @@ private fun BriefingScreen(
                 if (running) {
                     PreviewCard(b, preview, w, t)
                 } else if (weaving) {
-                    // The cold line on the height strip is the same place seen from below, when there is one.
-                    val coldHint = plan.metric == Metric.ICE_RISK_RATE && r.elevation != null && tempRef(b) != null
-                    WeaveCard(weavePlan ?: plan, weave, b, coldHint, w, t)
+                    WeaveCard(weavePlan ?: plan, weave, b, w, t)
                 } else if (cautions.isNotEmpty()) {
                     CautionList(cautions, b, w, t)
                     if (b.notEnoughCount > 0) {
@@ -197,8 +194,11 @@ private fun BriefingScreen(
                 } else {
                     Verdict(b.items.count { it.state.status == RibbonStatus.PUBLISHED }, b.notEnoughCount, rest = false, w, t)
                 }
-                Spacer(Modifier.height(24.dp))
-                Legend(b, r.curves.map { it.curve }.toSet(), r.hairpins.isNotEmpty(), w, t)
+                // The replay explains its own marks; the legend comes back when it is closed.
+                if (!weaving) {
+                    Spacer(Modifier.height(24.dp))
+                    Legend(b, r.curves.map { it.curve }.toSet(), r.hairpins.isNotEmpty(), w, t)
+                }
                 if (!running && !weaving && different.isNotEmpty()) {
                     Spacer(Modifier.height(16.dp))
                     AllPlaces(different, w, t)
@@ -211,7 +211,7 @@ private fun BriefingScreen(
                     reserved = emptyList(), preview = preview, chipSpecs = if (untied) emptyList() else chips,
                     weave = weave, weaveLabels = weaveLabels, modifier = Modifier.weight(1f).fillMaxWidth(),
                 )
-                r.elevation?.let { ElevationStrip(it, shown, t, w, preview, Modifier.fillMaxWidth().height(ElevationHeight)) }
+                r.elevation?.let { ElevationStrip(it, shown, t, w, preview, Modifier.fillMaxWidth().height(ElevationHeight), weave) }
             }
         }
         Spacer(Modifier.height(16.dp))

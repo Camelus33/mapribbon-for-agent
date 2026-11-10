@@ -4,6 +4,8 @@
   "routeId": "J1100S",
   "title": "대조군: 1100도로 전 구간 진눈깨비",
   "titleEn": "Control: sleet along the whole 1100 Road",
+  "label": "대조군 · 전 구간",
+  "labelEn": "Control · whole road",
   "description": "9대 모두 노형에서 중문까지 0°C를 보고하고 처음부터 끝까지 와이퍼를 켠다. 도로 전체의 날씨이므로 어느 곳도 \"평소와 다름\"이 되면 안 된다.",
   "vehicles": [
     {

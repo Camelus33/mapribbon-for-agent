@@ -4,6 +4,8 @@
   "routeId": "J1100S",
   "title": "1100도로: 어리목 헤어핀 급제동, 영실 너머 짙은 안개, 카메라 앞 급제동",
   "titleEn": "1100 Road: hard braking at the Eorimok hairpin, thick fog past Yeongsil, braking at the camera",
+  "label": "헤어핀 · 안개 · 카메라",
+  "labelEn": "Hairpin · fog · camera",
   "description": "12.1–14.1 km 구간 헤어핀에서 9대 중 4대가 급제동한다. 6대가 영실입구삼거리를 지나자마자 안개등을 켜고(4대는 뒤 안개등까지) 3 km를 그대로 간다. 3대가 내리막 가상 단속카메라 앞에서 급제동한다.",
   "vehicles": [
     {

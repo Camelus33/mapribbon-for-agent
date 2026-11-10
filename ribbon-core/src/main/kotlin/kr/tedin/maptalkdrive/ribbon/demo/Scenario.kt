@@ -20,6 +20,9 @@ data class Scenario(
     val title: String,
     val description: String,
     val titleEn: String? = null,
+    /** A name of a few words for the demo panel's card, where the card's map and icons already tell the story. */
+    val label: String? = null,
+    val labelEn: String? = null,
     /** The route this scenario drives; scenarios written before there were two routes drive the expressway. */
     val routeId: String = "SY60E",
     val vehicles: List<SimVehicle>,

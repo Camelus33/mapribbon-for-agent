@@ -451,6 +451,13 @@ class RibbonChannel private constructor(context: Context) {
         return if (ctx.resources.getBoolean(R.bool.english_names)) s.titleEn ?: s.title else s.title
     }
 
+    /** The scenario's short name for its card, or its title when it has none. */
+    fun scenarioLabel(id: String): String {
+        val s = data.scenarios.firstOrNull { it.id == id } ?: return id
+        val english = ctx.resources.getBoolean(R.bool.english_names)
+        return (if (english) s.labelEn ?: s.label else s.label) ?: scenarioTitle(id)
+    }
+
     private fun addKnots(new: List<Knot>, who: String) {
         if (new.isEmpty()) return
         val count = synchronized(knots) { knots += new; knots.size }

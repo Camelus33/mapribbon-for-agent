@@ -31,6 +31,7 @@ import androidx.compose.ui.text.rememberTextMeasurer
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import kr.tedin.maptalkdrive.R
+import kr.tedin.maptalkdrive.demo.WeaveFrame
 import kr.tedin.maptalkdrive.ribbon.brief.Briefing
 import kr.tedin.maptalkdrive.ribbon.geo.ElevationProfile
 import kr.tedin.maptalkdrive.ribbon.spec.AnchorType
@@ -38,7 +39,9 @@ import kr.tedin.maptalkdrive.ribbon.spec.Deviation
 import kr.tedin.maptalkdrive.ribbon.spec.Metric
 import kotlin.math.ceil
 import kotlin.math.floor
+import kotlin.math.PI
 import kotlin.math.roundToInt
+import kotlin.math.sin
 
 /** A measured outside temperature on the route: where (metres along it) and how warm. */
 data class TempRef(val alongM: Double, val tempC: Double)
@@ -72,10 +75,13 @@ fun ElevationStrip(
     w: Words,
     preview: State<Double?>,
     modifier: Modifier = Modifier,
+    weave: State<WeaveFrame?>? = null,
 ) {
     val tm = rememberTextMeasurer()
     val descents = remember(profile) { profile.descents() }
     val ref = remember(briefing) { tempRef(briefing) }
+    // Where the air is expected at the icing temperature, for the swell when the replay ties an ice ribbon.
+    val coldAt = remember(profile, ref) { ref?.let { profile.heightForTemp(Metric.ICE_TEMP_C, it.alongM, it.tempC) } }
     val lo = floor(profile.lowestM / 100) * 100
     val hi = ceil(profile.highestM / 100) * 100
     BoxWithConstraints(modifier) {
@@ -166,6 +172,15 @@ fun ElevationStrip(
                 },
             )
             Canvas(Modifier.fillMaxSize().graphicsLayer()) {
+                // The replay has tied an ice ribbon: the cold line swells once, so the eye finds the same place below.
+                val f = weave?.value
+                if (f != null && f.plan.metric == Metric.ICE_RISK_RATE && coldAt != null && coldAt < hi) {
+                    val since = (f.t - f.plan.revealS) / 1.6
+                    if (since in 0.0..1.0) {
+                        val y = p.y(maxOf(coldAt, lo))
+                        drawLine(t.cold.copy(alpha = sin(PI * since).toFloat()), Offset(p.left, y), Offset(p.right, y), 7.dp.toPx(), cap = StrokeCap.Round)
+                    }
+                }
                 val a = preview.value ?: return@Canvas
                 drawRect(t.surface.copy(alpha = 0.72f), Offset(p.left, p.top - 48.dp.toPx()), Size(p.x(a) - p.left, p.bottom - p.top + 48.dp.toPx()))
                 val c = Offset(p.x(a), p.y(profile.heightAt(a)))

@@ -32,6 +32,12 @@ class Words(private val r: Resources) {
      * Start and end of the route. Names read "<road> <start> → <end>"; the English one puts a colon after the road
      * ("Seoul-Yangyang Expressway: Inje IC → Yangyang JC") because its road name has spaces.
      */
+    /** The road a route runs on, without its trip: "1100도로", "1100 Road over Hallasan". */
+    fun road(set: AnchorSet): String {
+        val name = if (english) set.routeNameEn ?: set.routeName else set.routeName
+        return if (": " in name) name.substringBefore(": ") else name.substringBefore(' ')
+    }
+
     fun ends(set: AnchorSet): Pair<String, String> {
         val name = if (english) set.routeNameEn ?: set.routeName else set.routeName
         val trip = if (": " in name) name.substringAfter(": ") else name.substringAfter(' ')

@@ -4,6 +4,8 @@
   "routeId": "J1100S",
   "title": "1100고지 진눈깨비: 결빙 가능성",
   "titleEn": "Sleet at the 1100 m summit: possible ice",
+  "label": "결빙 · 1100고지",
+  "labelEn": "Ice · 1100 m summit",
   "description": "제주시는 7°C, 1100고지 양쪽 16.1–18.1 km–18.1–20.1 km 구간은 0°C. 그 구간에서 9대 중 7대가 와이퍼를 켜고 전조등이 켜진다. 젖은 노면이 어는점이라 결빙 가능성으로 읽힌다.",
   "vehicles": [
     {

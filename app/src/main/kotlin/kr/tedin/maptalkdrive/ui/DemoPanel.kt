@@ -23,6 +23,7 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -77,9 +78,11 @@ private val Card = RoundedCornerShape(12.dp)
 private val PrettyJson = Json { prettyPrint = true; encodeDefaults = true; explicitNulls = false }
 
 /**
- * The demo panel, said in pictures. Each scenario is a small map of where its cars do what, with the icons and counts
- * of the story it tells; the replay is a row of cars filling in; the car's own signals are telltales that light up;
- * the agent channel is a flow from the cars to the agents that read it. Words are left for names and accessibility.
+ * The demo panel, said in pictures and in as few words as the presenter needs. On top, the two things a demo does:
+ * put a route into the navigation, then send simulated cars down it (each scenario a small map of where its cars do
+ * what, with the icons and counts of the story it tells), and the agent channel as one flow from the cars to the
+ * agents. Below, folded: the bundled routes that work without the ribbon server, and the developer's checks (the
+ * replay's progress, clearing and recording, the car's ports and telltales, the JSON on the channel).
  */
 @Composable
 fun DemoPanel(vm: RibbonViewModel, s: ChannelState, t: Tokens, w: Words, onClose: () -> Unit, modifier: Modifier) {
@@ -88,8 +91,9 @@ fun DemoPanel(vm: RibbonViewModel, s: ChannelState, t: Tokens, w: Words, onClose
     val vStatus by ch.vehicle.status.collectAsState()
     val lStatus by ch.location.status.collectAsState()
     val nStatus by ch.navi.status.collectAsState()
-    var details by remember { mutableStateOf(false) }
-    var showSameBundled by remember { mutableStateOf(false) }
+    // Without a navigation route the spare routes are all there is, so they start open.
+    var spare by remember { mutableStateOf(s.live == null) }
+    var dev by remember { mutableStateOf(false) }
     Row(modifier.fillMaxHeight().width(PanelWidth)) {
         Box(Modifier.fillMaxHeight().width(1.dp).background(t.hairline))
         Column(
@@ -101,74 +105,112 @@ fun DemoPanel(vm: RibbonViewModel, s: ChannelState, t: Tokens, w: Words, onClose
                 Text(w.str(R.string.demo), style = Type.title, color = t.ink, modifier = Modifier.weight(1f))
                 IconTap(w.str(R.string.close), onClose) { c, sz -> closeIcon(c, sz, t.ink) }
             }
-            // Navigation routes typed in as tests (the emulator's navigation does not answer), the Jeju trips.
+            // 1. The route the navigation is given (typed in as a test: the emulator's navigation does not answer). The
+            // panel stays open, so the cards below turn into that route's as soon as it is drawn.
+            val live = s.live
+            val preset = ch.livePreset()
             Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
                 Text(w.str(R.string.demo_navi_presets), style = Type.caption, color = t.muted)
-                for (p in NaviPresets.all) {
-                    PanelButton(w.str(p.label), t, enabled = !s.replaying, onClick = { ch.navi.inject(p.route); onClose() }) { c, sz -> playIcon(c, sz, t.ink) }
+                Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                    for (p in NaviPresets.all) {
+                        Choice(w.str(p.label), selected = preset?.id == p.id, enabled = !s.replaying, t, Modifier.weight(1f)) { ch.navi.inject(p.route) }
+                    }
                 }
-            }
-            // The navigation's route, when one is set: its demo scenarios, or back to it from a bundled route.
-            val preset = ch.livePreset()
-            val presetOnScreen = preset?.takeIf { s.live?.routeId == s.routeId && s.live?.phase == LivePhase.READY }
-            s.live?.routeId?.let { id ->
-                val lr = ch.routeData(id)
-                Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                    val (from, to) = w.ends(lr.anchorSet)
-                    Text(w.str(R.string.demo_live_route) + " · $from → $to · ${Words.at(lr.anchorSet.lengthM)}", style = Type.context, color = t.ink)
-                    if (s.routeId != id) PanelButton(w.str(R.string.demo_live_show), t, onClick = { ch.selectRoute(id); onClose() }) { c, sz -> playIcon(c, sz, t.ink) }
-                    if (presetOnScreen != null) {
-                        Text(w.str(R.string.demo_live_scenarios), style = Type.caption, color = t.ink2)
-                        val bundled = vm.data.route(presetOnScreen.bundledRouteId)
-                        for (sc in vm.data.shownScenarios.filter { it.routeId == presetOnScreen.bundledRouteId }) {
-                            ScenarioCard(
-                                ch.scenarioTitle(sc.id), sc, bundled, selected = s.scenarioId == sc.id, enabled = !s.replaying, t, w,
-                                action = w.str(R.string.demo_send_cars),
-                            ) { ch.runScenarioOnLive(sc.id); onClose() }
-                        }
+                when {
+                    live?.phase == LivePhase.LOADING -> Text(w.str(R.string.live_loading), style = Type.caption, color = t.ink2)
+                    live?.phase == LivePhase.FAILED -> Row(verticalAlignment = Alignment.CenterVertically) {
+                        Text(w.liveError(live.error), style = Type.caption, color = t.ink2, modifier = Modifier.weight(1f))
+                        PanelButton(w.str(R.string.live_retry), t, onClick = { ch.retryLive() }) { c, sz -> resetIcon(c, sz, t.ink) }
+                    }
+                    else -> live?.routeId?.takeIf { it != s.routeId }?.let { id ->
+                        // A spare route is on screen: back to the navigation's.
+                        PanelButton(w.str(R.string.demo_live_show), t, onClick = { ch.selectRoute(id) }) { c, sz -> playIcon(c, sz, t.ink) }
                     }
                 }
             }
-            for (route in vm.data.routes) {
-                val scenarios = vm.data.shownScenarios.filter { it.routeId == route.id }
-                if (scenarios.isEmpty()) continue
-                // While the navigation's route from a preset is on screen, the same trip's bundled cards would show the
-                // same titles twice; they fold away behind one line, so a card is never tapped for the wrong route.
-                val same = presetOnScreen?.bundledRouteId == route.id
+            // 2. Simulated cars down the navigation's route, once it is on screen.
+            val presetOnScreen = preset?.takeIf { live?.routeId == s.routeId && live?.phase == LivePhase.READY }
+            // Once the navigation's route is drawn its cards are the ones to tap; the spare routes, with the same names,
+            // fold away so a card is never tapped for the wrong route.
+            LaunchedEffect(presetOnScreen?.id) { if (presetOnScreen != null) spare = false }
+            if (presetOnScreen != null) {
                 Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                    val (from, to) = w.ends(route.anchorSet)
-                    Text(w.str(R.string.demo_bundled) + " · $from → $to · ${Words.at(route.anchorSet.lengthM)}", style = Type.caption, color = t.muted)
-                    if (same && !showSameBundled) {
-                        PanelButton(w.str(R.string.demo_show_bundled), t, onClick = { showSameBundled = true }) { c, sz -> chevronIcon(c, sz, t.ink, up = false) }
-                    } else {
+                    Text(w.str(R.string.demo_live_scenarios), style = Type.caption, color = t.muted)
+                    val bundled = vm.data.route(presetOnScreen.bundledRouteId)
+                    for (sc in vm.data.shownScenarios.filter { it.routeId == presetOnScreen.bundledRouteId }) {
+                        ScenarioCard(
+                            ch.scenarioLabel(sc.id), ch.scenarioTitle(sc.id), sc, bundled,
+                            selected = s.scenarioId == sc.id, enabled = !s.replaying, t, w,
+                        ) { ch.runScenarioOnLive(sc.id); onClose() }
+                    }
+                }
+            }
+            AgentFlow(s, t, w)
+            // 3. Folded: routes that need no server, and what only the developer looks at.
+            Fold(w.str(R.string.demo_bundled), spare, t) { spare = !spare }
+            if (spare) {
+                for (route in vm.data.routes) {
+                    val scenarios = vm.data.shownScenarios.filter { it.routeId == route.id }
+                    if (scenarios.isEmpty()) continue
+                    Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                        Text("${w.road(route.anchorSet)} · ${Words.at(route.anchorSet.lengthM)}", style = Type.caption, color = t.muted)
                         for (sc in scenarios) {
-                            ScenarioCard(ch.scenarioTitle(sc.id), sc, route, selected = s.routeId == route.id && s.scenarioId == sc.id, enabled = !s.replaying, t, w) {
-                                ch.runScenario(sc.id); onClose()
-                            }
+                            ScenarioCard(
+                                ch.scenarioLabel(sc.id), ch.scenarioTitle(sc.id), sc, route,
+                                selected = s.routeId == route.id && s.scenarioId == sc.id, enabled = !s.replaying, t, w,
+                            ) { ch.runScenario(sc.id); onClose() }
                         }
                     }
                 }
             }
-            if (s.replaying || s.knotCount > 0) ReplayStrip(s, t, w)
-            Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                PanelButton(w.str(R.string.clear), t, enabled = !s.replaying, onClick = { ch.clear() }) { c, sz -> resetIcon(c, sz, t.ink) }
-                PanelButton(w.str(R.string.record_live), t, onClick = { ch.startRecording(); onClose() }) { c, sz -> recordIcon(c, sz, t.ink) }
+            Fold(w.str(R.string.demo_dev), dev, t) { dev = !dev }
+            if (dev) {
+                if (s.replaying || s.knotCount > 0) ReplayStrip(s, t, w)
+                Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                    PanelButton(w.str(R.string.clear), t, enabled = !s.replaying, onClick = { ch.clear() }) { c, sz -> resetIcon(c, sz, t.ink) }
+                    PanelButton(w.str(R.string.record_live), t, onClick = { ch.startRecording(); onClose() }) { c, sz -> recordIcon(c, sz, t.ink) }
+                }
+                Connection(vStatus, lStatus, nStatus, t, w)
+                Telltales(signals, t, w)
+                AgentDetails(s, t, w)
             }
-            Connection(vStatus, lStatus, nStatus, t, w)
-            Telltales(signals, t, w)
-            AgentFlow(s, details, t, w) { details = !details }
-            if (details) AgentDetails(s, t, w)
         }
+    }
+}
+
+/** One of a few choices side by side; the chosen one has a heavy outline. */
+@Composable
+private fun Choice(label: String, selected: Boolean, enabled: Boolean, t: Tokens, modifier: Modifier, onClick: () -> Unit) {
+    Box(
+        modifier.height(PanelTouch).clip(Card).background(if (selected) t.surface else t.page)
+            .border(if (selected) 2.dp else 1.dp, if (selected) t.ink else t.grid, Card)
+            .clickable(enabled = enabled, onClick = onClick),
+        contentAlignment = Alignment.Center,
+    ) { Text(label, style = Type.button, color = if (enabled) t.ink else t.muted, maxLines = 1, overflow = TextOverflow.Ellipsis) }
+}
+
+/** A folded section's line: its name and a chevron that says which way it opens. */
+@Composable
+private fun Fold(label: String, open: Boolean, t: Tokens, onToggle: () -> Unit) {
+    Row(
+        Modifier.fillMaxWidth().height(64.dp).clip(Card).clickable(onClick = onToggle).padding(horizontal = 4.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Text(label, style = Type.button, color = t.ink2, modifier = Modifier.weight(1f))
+        IconBox(26.dp) { c, sz -> chevronIcon(c, sz, t.ink2, up = open) }
     }
 }
 
 // ---------------------------------------------------------------- scenarios
 
-/** One scenario: where its cars do what (a small map), what they do and in how many cars (icons and counts). */
+/**
+ * One scenario: where its cars do what (a small map), a short name, what they do and in how many cars (icons and
+ * counts). The whole card sends the cars; the play mark says so. The full title is kept for accessibility.
+ */
 @Composable
 private fun ScenarioCard(
-    title: String, scenario: Scenario, route: RouteData, selected: Boolean, enabled: Boolean, t: Tokens, w: Words,
-    action: String? = null, onClick: () -> Unit,
+    label: String, title: String, scenario: Scenario, route: RouteData, selected: Boolean, enabled: Boolean, t: Tokens, w: Words,
+    onClick: () -> Unit,
 ) {
     val beats = scenario.story.sortedBy { it.fromM }
     val cars = scenario.vehicles.size
@@ -182,40 +224,27 @@ private fun ScenarioCard(
             .padding(12.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        MiniRoute(route, beats, t, Modifier.size(width = 136.dp, height = 72.dp))
+        MiniRoute(route, beats, t, Modifier.size(width = 120.dp, height = 64.dp))
         Spacer(Modifier.width(16.dp))
-        Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-            Text(title, style = Type.caption, color = t.ink, maxLines = 2, overflow = TextOverflow.Ellipsis)
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Row(horizontalArrangement = Arrangement.spacedBy(14.dp), verticalAlignment = Alignment.CenterVertically, modifier = Modifier.weight(1f)) {
-                    for (beat in beats) {
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            IssueIcon(beat.metric, 30.dp, if (beat.expectDifferent) t.ink else t.ink2)
-                            Spacer(Modifier.width(4.dp))
-                            Text("${beat.cars}", style = Type.captionNum, color = if (beat.expectDifferent) t.ink else t.ink2)
-                            // A control: the cars do it everywhere, so nothing may stand out.
-                            if (!beat.expectDifferent) {
-                                Spacer(Modifier.width(8.dp))
-                                IconBox(22.dp) { c, sz -> equalsIcon(c, sz, t.ink2) }
-                            }
+        Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+            Text(label, style = Type.body, color = t.ink, maxLines = 1, overflow = TextOverflow.Ellipsis)
+            Row(horizontalArrangement = Arrangement.spacedBy(14.dp), verticalAlignment = Alignment.CenterVertically) {
+                for (beat in beats) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        IssueIcon(beat.metric, 30.dp, if (beat.expectDifferent) t.ink else t.ink2)
+                        Spacer(Modifier.width(4.dp))
+                        Text("${beat.cars}", style = Type.captionNum, color = if (beat.expectDifferent) t.ink else t.ink2)
+                        // A control: the cars do it everywhere, so nothing may stand out.
+                        if (!beat.expectDifferent) {
+                            Spacer(Modifier.width(8.dp))
+                            IconBox(22.dp) { c, sz -> equalsIcon(c, sz, t.ink2) }
                         }
                     }
                 }
-                IconBox(24.dp) { c, sz -> carIcon(c, sz, t.muted) }
-                Spacer(Modifier.width(4.dp))
-                Text("$cars", style = Type.captionNum, color = t.muted)
-            }
-            if (action != null) {
-                Row(
-                    Modifier.clip(RoundedCornerShape(50)).background(t.actionBg).padding(horizontal = 14.dp, vertical = 6.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                ) {
-                    IconBox(18.dp) { c, sz -> playIcon(c, sz, t.actionInk) }
-                    Spacer(Modifier.width(6.dp))
-                    Text(action, style = Type.caption, color = t.actionInk)
-                }
             }
         }
+        Spacer(Modifier.width(12.dp))
+        IconBox(28.dp) { c, sz -> playIcon(c, sz, if (enabled) t.ink else t.muted) }
     }
 }
 
@@ -388,26 +417,20 @@ private fun LevelBars(lit: Int, of: Int, t: Tokens) = Canvas(Modifier.size(width
 
 // ---------------------------------------------------------------- the agent channel
 
-/** Cars tie knots, knots become ribbons, agents read the ribbons: the channel as a flow with its counts. Tap for the JSON. */
+/** Cars tie knots, knots become ribbons, agents read the ribbons: the channel as a flow with its counts. */
 @Composable
-private fun AgentFlow(s: ChannelState, open: Boolean, t: Tokens, w: Words, onToggle: () -> Unit) {
+private fun AgentFlow(s: ChannelState, t: Tokens, w: Words) {
     val ribbons = s.briefing.items.count { it.state.status == RibbonStatus.PUBLISHED }
-    Column(
-        Modifier.fillMaxWidth().clip(Card).background(t.surface).clickable(onClick = onToggle).padding(16.dp)
+    Row(
+        Modifier.fillMaxWidth().clip(Card).background(t.surface).padding(16.dp)
             .semantics(mergeDescendants = true) { contentDescription = "${w.str(R.string.agent_io)}, ${w.str(R.string.knots, s.knotCount)}" },
-        verticalArrangement = Arrangement.spacedBy(10.dp),
+        verticalAlignment = Alignment.Top,
     ) {
-        Row(verticalAlignment = Alignment.CenterVertically) {
-            Text(w.str(R.string.agent_io), style = Type.caption, color = t.ink2, modifier = Modifier.weight(1f))
-            IconBox(24.dp) { c, sz -> chevronIcon(c, sz, t.ink2, up = open) }
-        }
-        Row(verticalAlignment = Alignment.Top) {
-            FlowNode(w.str(R.string.flow_cars), null, t) { c, sz -> carIcon(c, sz, t.ink) }
-            FlowEdge(s.knotCount, t, Modifier.weight(1f)) { c, sz -> knotIcon(c, sz, t.ink2) }
-            FlowNode(w.str(R.string.flow_ribbons), ribbons, t) { c, sz -> ribbonIcon(c, sz, t.ink) }
-            FlowEdge(null, t, Modifier.weight(1f)) { _, _ -> }
-            FlowNode(w.str(R.string.flow_agents), null, t) { c, sz -> sparkIcon(c, sz, t.ink) }
-        }
+        FlowNode(w.str(R.string.flow_cars), null, t) { c, sz -> carIcon(c, sz, t.ink) }
+        FlowEdge(s.knotCount, t, Modifier.weight(1f)) { c, sz -> knotIcon(c, sz, t.ink2) }
+        FlowNode(w.str(R.string.flow_ribbons), ribbons, t) { c, sz -> ribbonIcon(c, sz, t.ink) }
+        FlowEdge(null, t, Modifier.weight(1f)) { _, _ -> }
+        FlowNode(w.str(R.string.flow_agents), null, t) { c, sz -> sparkIcon(c, sz, t.ink) }
     }
 }
 

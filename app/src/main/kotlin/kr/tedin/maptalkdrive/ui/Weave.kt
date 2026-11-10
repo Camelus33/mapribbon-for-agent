@@ -5,6 +5,7 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.material3.Text
@@ -210,21 +211,55 @@ private fun KnotDot(color: Color, t: Tokens) = Canvas(Modifier.size(20.dp)) {
     drawCircle(color, 5.5f.dp.toPx())
 }
 
+private enum class Step { WAITING, ACTIVE, DONE }
+
+/** A step's mark: a hollow ring while it waits, a dot while it runs, a tick once it is done. */
+@Composable
+private fun StepGlyph(step: Step, t: Tokens) = Canvas(Modifier.size(28.dp)) {
+    val c = center
+    val r = 11.dp.toPx()
+    when (step) {
+        Step.WAITING -> drawCircle(t.axis, r, c, style = Stroke(2.dp.toPx()))
+        Step.ACTIVE -> {
+            drawCircle(t.ink, r, c, style = Stroke(2.dp.toPx()))
+            drawCircle(t.ink, 5.dp.toPx(), c)
+        }
+        Step.DONE -> {
+            drawCircle(t.ink2, r, c, style = Stroke(2.dp.toPx()))
+            val s = r * 0.55f
+            drawLine(t.ink2, c + Offset(-s, 0f), c + Offset(-s * 0.25f, s * 0.7f), 2.5f.dp.toPx(), StrokeCap.Round)
+            drawLine(t.ink2, c + Offset(-s * 0.25f, s * 0.7f), c + Offset(s, -s * 0.6f), 2.5f.dp.toPx(), StrokeCap.Round)
+        }
+    }
+}
+
+/** One fixed line of the card: its mark, what it counts, and the count on the right. */
+@Composable
+private fun StepRow(step: Step, label: String, value: String, t: Tokens) {
+    Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.height(48.dp)) {
+        StepGlyph(step, t)
+        Spacer(Modifier.width(12.dp))
+        Text(label, style = Type.context, color = if (step == Step.WAITING) t.muted else t.ink2, modifier = Modifier.width(200.dp))
+        Text(value, style = Type.label.copy(fontFeatureSettings = "tnum"), color = if (step == Step.WAITING) t.muted else t.ink)
+    }
+}
+
 /**
- * The words beside the replay. They add up rather than replace one another, so each can be read at its own pace and
- * the end holds all of it: what the knots are, that a place needs three distinct cars, the verdict against the
- * neighbours and the usual value, and whether a ribbon tied.
+ * The words beside the replay, as few as the map leaves. The map shows where things happen; the card only keeps the
+ * score, in three fixed lines that light up in turn (cars that passed, the three-car threshold, the verdict with its
+ * bars) and one result line. Every line has its place from the start, so nothing moves while the replay runs, and no
+ * line says again what the map or another line already shows.
  */
 @Composable
-fun WeaveCard(plan: WeavePlan, frame: State<WeaveFrame?>, b: Briefing, coldHint: Boolean, w: Words, t: Tokens) {
+fun WeaveCard(plan: WeavePlan, frame: State<WeaveFrame?>, b: Briefing, w: Words, t: Tokens) {
     val focusItem = remember(plan, b) { plan.focus?.let { f -> b.items.firstOrNull { it.anchor.id == f.anchorId } } }
     val threshold by remember(plan) { derivedStateOf { plan.focusIndex >= 0 && plan.passedBy(plan.focusIndex, frame.value?.t ?: 0.0) >= plan.minCars } }
     val judging by remember(plan) { derivedStateOf { (frame.value?.t ?: 0.0) >= plan.evalS } }
-    val judged by remember(plan) { derivedStateOf { (frame.value?.t ?: 0.0) >= plan.evalS + plan.barsS } }
     val revealed by remember(plan) { derivedStateOf { (frame.value?.t ?: 0.0) >= plan.revealS } }
+    val judged = focusItem != null && plan.outcome != WeaveOutcome.NOTHING
     Column {
-        Text(w.str(R.string.weave_title), style = Type.headline, color = t.ink)
-        Spacer(Modifier.height(12.dp))
+        Text(w.str(R.string.weave_run), style = Type.title, color = t.ink)
+        Spacer(Modifier.height(8.dp))
         Row(verticalAlignment = Alignment.CenterVertically) {
             KnotDot(t.muted, t)
             Spacer(Modifier.width(8.dp))
@@ -239,75 +274,57 @@ fun WeaveCard(plan: WeavePlan, frame: State<WeaveFrame?>, b: Briefing, coldHint:
             }
         }
         Spacer(Modifier.height(16.dp))
-        Text(
-            listOfNotNull(
-                // Demo scenarios send the same cars everywhere; on a real road places differ in how many cars passed.
-                if (plan.fewestCars == plan.cars) w.str(R.string.weave_cars, plan.cars) else w.str(R.string.weave_cars_varied, plan.fewestCars, plan.cars),
-                w.str(R.string.weave_knots),
-                plan.metric?.let { w.str(R.string.weave_colours, w.issue(it)) },
-            ).joinToString(" "),
-            style = Type.body, color = t.ink,
+        StepRow(
+            if (judging) Step.DONE else Step.ACTIVE, w.str(R.string.weave_step_cars),
+            if (plan.fewestCars == plan.cars) w.str(R.string.weave_cars_value, plan.cars) else w.str(R.string.weave_cars_range, plan.fewestCars, plan.cars),
+            t,
         )
-        if (threshold && focusItem != null) {
-            Spacer(Modifier.height(12.dp))
-            Text(w.str(R.string.weave_threshold, w.place(focusItem), plan.minCars), style = Type.body, color = t.ink)
-        }
-        if (judging && focusItem != null && plan.outcome != WeaveOutcome.NOTHING) {
-            Spacer(Modifier.height(20.dp))
-            Judgement(plan, frame, focusItem, judged, w, t)
-        }
-        if (revealed) {
-            Spacer(Modifier.height(20.dp))
-            Text(result(plan, focusItem, w), style = Type.label, color = t.ink)
-            if (coldHint && plan.outcome == WeaveOutcome.TIED) {
-                Spacer(Modifier.height(8.dp))
-                Text(w.str(R.string.weave_tied_cold, "%.0f".format(Metric.ICE_TEMP_C)), style = Type.body, color = t.ink2)
-            }
-        }
-    }
-}
-
-/** The focus against its neighbours and its usual value, as cars out of the same number, with bars that fill. */
-@Composable
-private fun Judgement(plan: WeavePlan, frame: State<WeaveFrame?>, focus: BriefingItem, judged: Boolean, w: Words, t: Tokens) {
-    val n = plan.focus!!.n
-    fun cars(rate: Double) = w.str(R.string.count_cars, (rate * n).roundToInt(), n)
-    Column {
-        Text(w.str(R.string.weave_judge_title, w.place(focus)), style = Type.label, color = t.ink)
-        Text(
-            w.str(if (plan.usualRate != null) R.string.weave_judge else R.string.weave_judge_neighbours_only),
-            style = Type.caption, color = t.ink2,
-        )
-        Spacer(Modifier.height(12.dp))
-        JudgeRow(w.str(R.string.weave_this), plan.focusRate, plan.focusRate?.let(::cars) ?: "—", t.knot, plan, frame, t)
-        JudgeRow(w.str(R.string.weave_neighbours), plan.neighbourRate, plan.neighbourRate?.let(::cars) ?: "—", t.muted, plan, frame, t)
-        val usual = plan.usualRate
-        JudgeRow(
-            w.str(R.string.weave_usual), usual,
-            when {
-                usual == null -> w.str(R.string.weave_usual_unknown)
-                (usual * n).roundToInt() == 0 -> w.str(R.string.weave_usual_almost_none)
-                else -> w.str(R.string.weave_usual_about, (usual * n).roundToInt(), n)
-            },
-            t.muted, plan, frame, t,
-        )
+        StepRow(if (threshold) Step.DONE else Step.WAITING, w.str(R.string.weave_step_threshold), w.str(R.string.weave_cars_value, plan.minCars), t)
         if (judged) {
-            Spacer(Modifier.height(8.dp))
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                if (plan.outcome == WeaveOutcome.TIED) {
-                    StatusGlyph(plan.focus!!.deviation, 32.dp, t, t.surface)
-                    Spacer(Modifier.width(10.dp))
+            StepRow(
+                when { revealed -> Step.DONE; judging -> Step.ACTIVE; else -> Step.WAITING },
+                w.str(R.string.weave_step_judge), segmentName(focusItem!!, w), t,
+            )
+            Column(Modifier.padding(start = 40.dp)) {
+                val n = plan.focus!!.n
+                fun cars(rate: Double) = "${(rate * n).roundToInt()}/$n"
+                BarRow(w.str(R.string.weave_this), plan.focusRate, plan.focusRate?.let(::cars) ?: "—", t.knot, judging, plan, frame, t)
+                BarRow(w.str(R.string.weave_neighbours), plan.neighbourRate, plan.neighbourRate?.let(::cars) ?: "—", t.muted, judging, plan, frame, t)
+                plan.usualRate?.let { u ->
+                    val about = (u * n).roundToInt()
+                    BarRow(
+                        w.str(R.string.weave_usual), u,
+                        if (about == 0) w.str(R.string.weave_usual_almost_none) else w.str(R.string.weave_usual_about, about, n),
+                        t.muted, judging, plan, frame, t,
+                    )
                 }
-                Text(verdict(plan, w), style = Type.label, color = t.ink)
+            }
+        }
+        Spacer(Modifier.height(16.dp))
+        // The result's line is kept free from the start, so it appears without pushing anything.
+        Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.height(48.dp)) {
+            if (revealed) {
+                if (plan.outcome == WeaveOutcome.TIED) {
+                    StatusGlyph(plan.focus!!.deviation, 36.dp, t, t.surface)
+                    Spacer(Modifier.width(12.dp))
+                }
+                Text(w.str(resultOf(plan.outcome)), style = Type.headline.copy(fontSize = Type.title.fontSize * 1.25f), color = t.ink)
+                Spacer(Modifier.width(16.dp))
+                Text(reasonOf(plan, w), style = Type.context, color = t.ink2)
             }
         }
     }
 }
 
+/** A segment is its kilometres; any other place its name. */
+private fun segmentName(item: BriefingItem, w: Words): String =
+    if (item.anchor.type == AnchorType.SEGMENT) w.name(item.anchor) else w.place(item)
+
+/** A comparison bar; its value shows, and the bar fills, once the verdict starts. */
 @Composable
-private fun JudgeRow(label: String, rate: Double?, value: String, color: Color, plan: WeavePlan, frame: State<WeaveFrame?>, t: Tokens) {
-    Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.height(44.dp)) {
-        Text(label, style = Type.context, color = t.ink2, modifier = Modifier.width(132.dp))
+private fun BarRow(label: String, rate: Double?, value: String, color: Color, shown: Boolean, plan: WeavePlan, frame: State<WeaveFrame?>, t: Tokens) {
+    Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.height(40.dp)) {
+        Text(label, style = Type.context, color = if (shown) t.ink2 else t.muted, modifier = Modifier.width(100.dp))
         Canvas(Modifier.size(width = 200.dp, height = 14.dp)) {
             val r = CornerRadius(size.height / 2)
             drawRoundRect(t.grid, Offset.Zero, size, r)
@@ -318,25 +335,21 @@ private fun JudgeRow(label: String, rate: Double?, value: String, color: Color, 
             }
         }
         Spacer(Modifier.width(16.dp))
-        Text(value, style = Type.bodyNum, color = t.ink)
+        if (shown) Text(value, style = Type.bodyNum, color = t.ink)
     }
 }
 
-private fun verdict(p: WeavePlan, w: Words): String = w.str(
-    when (p.outcome) {
-        WeaveOutcome.TIED -> if (p.usualRate != null) R.string.weave_verdict_tied else R.string.weave_verdict_tied_neighbours
-        WeaveOutcome.TOO_FEW -> R.string.weave_verdict_few
-        WeaveOutcome.LIKE_NEIGHBOURS -> R.string.weave_verdict_neighbours
-        WeaveOutcome.LIKE_USUAL -> R.string.weave_verdict_usual
-        WeaveOutcome.SMALL, WeaveOutcome.NOTHING -> R.string.weave_verdict_small
-    },
-)
+private fun resultOf(o: WeaveOutcome): Int = when (o) {
+    WeaveOutcome.TIED -> R.string.weave_tied
+    WeaveOutcome.TOO_FEW -> R.string.weave_held
+    else -> R.string.weave_none
+}
 
-private fun result(p: WeavePlan, focus: BriefingItem?, w: Words): String = when (p.outcome) {
-    WeaveOutcome.TIED -> w.str(R.string.weave_tied, focus?.let(w::place) ?: "", w.issue(p.metric), p.focus!!.let { w.str(R.string.count_cars, it.hits, it.n) })
-    WeaveOutcome.TOO_FEW -> w.str(R.string.weave_none_few, p.minCars)
-    WeaveOutcome.LIKE_NEIGHBOURS -> w.str(R.string.weave_none_neighbours)
-    WeaveOutcome.LIKE_USUAL -> w.str(R.string.weave_none_usual)
-    WeaveOutcome.SMALL -> w.str(R.string.weave_none_small)
-    WeaveOutcome.NOTHING -> w.str(R.string.weave_none_quiet)
+private fun reasonOf(p: WeavePlan, w: Words): String = when (p.outcome) {
+    WeaveOutcome.TIED -> w.str(if (p.usualRate != null) R.string.weave_why_both else R.string.weave_why_neighbours)
+    WeaveOutcome.TOO_FEW -> w.str(R.string.weave_why_few, p.minCars)
+    WeaveOutcome.LIKE_NEIGHBOURS -> w.str(R.string.weave_why_like_neighbours)
+    WeaveOutcome.LIKE_USUAL -> w.str(R.string.weave_why_like_usual)
+    WeaveOutcome.SMALL -> w.str(R.string.weave_why_small)
+    WeaveOutcome.NOTHING -> w.str(R.string.weave_why_quiet)
 }
