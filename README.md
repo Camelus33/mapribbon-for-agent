@@ -227,6 +227,7 @@ Gleo AI용 함수 네 개(`get_route_ribbons`, `get_next_unusual`, `get_cautions
 | 항목 | 값 |
 |---|---|
 | 에뮬레이터 | Pleos Connect v2.1.0 (API 34, arm64, Apple Silicon Mac, `-gpu host`) |
+| 화면 규격 | 2560×1440 가로, density 160 (AVD `hw.lcd.*`) |
 | SDK | Pleos Vehicle 2.3.2, NaviHelper 3.0.5, FusedLocation 1.1.3 |
 | 빌드 | JDK 17, AGP 8.8.2, Kotlin 2.0.0, compileSdk/targetSdk 35, minSdk 28, Gradle 8.14.6 |
 | 성능 (에뮬레이터, release) | 경로 지도 정지 시 CPU 0%, 한계령 미리 달리기 중(약 30초) 6–20%, RSS 약 155–180MB (2026-11-06). 리본이 묶이는 과정 재현 중(약 13초, 초당 30프레임) 15–25%, 끝 화면 0%, RSS 약 170–185MB (2026-11-10) |
